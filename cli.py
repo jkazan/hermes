@@ -52,45 +52,46 @@ class CLIReactor(object):
     def write(self, string, color="regular"):
         sys.stdout.write(self.colors[color](string))
 
-    def cliComment(self, tickets, comment):
-        """Comment on a Jira tickets.
+    def cliComment(self, ticket, comment):
+        """Comment on a Jira ticket.
 
-        param tickets: Jira tickets key.
-        param comment: Comment to post to tickets.
+        param ticket: Jira ticket key.
+        param comment: Comment to post to ticket.
         """
-        url = 'https://jira.esss.lu.se/rest/api/latest/issue/'+tickets+'/comment'
+        url = 'https://jira.esss.lu.se/rest/api/latest/issue/'+ticket+'/comment'
         payload = '{"body":"'+comment+'"}'
-        response = requests.post(url, auth=self.auth, headers=self.headers, data=payload)
-        response_code = response.replace("[", " ")
-        response_code = response_code.replace("]", " ")
-        response_code = [int(s) for s in response_code.split() if s.isdigit()]
+        response = requests.post(
+            url, auth=self.auth, headers=self.headers, data=payload)
+        self.parse_response(response, ticket)
 
-        if response_code[0] >= 200 and response_code[0] < 300:
-            self.write('Comment posted\n', 'ok')
-        else:
-            self.write('Comment failed with "{}"\n' .format(response), 'warning')
-
-    def cliLog(self, tickets, time, comment):
+    def cliLog(self, ticket, time, comment):
         """Log work.
 
-        param tickets: Jira tickets key.
-        param time: Time spent to post to tickets's work log..
-        param comment: Comment to post to tickets's work log.
+        param ticket: Jira ticket key.
+        param time: Time spent to post to ticket's work log..
+        param comment: Comment to post to ticket's work log.
         """
-        url = 'https://jira.esss.lu.se/rest/api/2/issue/'+tickets+'/worklog'
+        url = 'https://jira.esss.lu.se/rest/api/2/issue/'+ticket+'/worklog'
         payload = '{"timeSpent":"'+time+'","comment":"'+comment+'"}'
-        response = requests.post(url, auth=self.auth, headers=self.headers, data=payload)
-        response_code = response.replace("[", " ")
-        response_code = response_code.replace("]", " ")
-        response_code = [int(s) for s in response_code.split() if s.isdigit()]
+        response = requests.post(
+            url, auth=self.auth, headers=self.headers, data=payload)
+        self.parse_response(response, ticket)
 
-        if response_code[0] >= 200 and response_code[0] < 300:
-            self.write('Comment posted\n', 'ok')
-        else:
-            self.write('Comment failed with "{}"\n' .format(response), 'warning')
+    def parse_response(self, response, ticket):
+        data = response.json()
+
+        if response.status_code == 201:
+            self.write('Successfully posted\n', 'ok')
+        elif response.status_code == 400:
+            errorMessages = data['errorMessages'][0]
+            errors = data['errors']['timeLogged']
+            self.write('{} {}\n' .format(errorMessages, errors), 'warning')
+        elif response.status_code == 404:
+            errorMessages = data['errorMessages'][0]
+            self.write('{}\n' .format(errorMessages), 'warning')
 
     def cliGetTickets(self, user=None):
-        """Lists all ticketss for assigned to user."""
+        """Lists all tickets for assigned to user."""
         if user is None:
             user = self.user
 
@@ -152,7 +153,8 @@ class CLIReactor(object):
             for parent, children in tree:
                 if parent[0] == parent_key:
                     # print('{}' .format(progress[i]))
-                    children.append([tickets[i], issue_types[i], progress[i], summaries[i]])
+                    children.append(
+                        [tickets[i], issue_types[i], progress[i], summaries[i]])
 
         # Print headers
         self.write('{:<18s}{:<15s}{:<10s}{}\n' .format('Ticket',
@@ -179,15 +181,18 @@ class CLIReactor(object):
 
     def cliHelp(self):
         """Print help text."""
+        help_descr = 'List valid commands'
+        comment_descr = 'Comment on a tickets (comment in quotes).'
+        log_descr = 'Log work, e.g. log "3h 20m" "comment"'
+        quit_descr = 'Quit Jira CLI'
+        tickets_descr = 'List assignee\'s tickets.'
+
         help_text = {
-            'help'                               : 'List valid commands',
-            'comment <ticket> "<comment>"'      : 'Comment on a tickets.The comment must be in\n'
-                                                   +35*' '+'quotes.',
-            'log <ticket> "<time>" "<comment>"' : 'Log work. Enter time as e.g. "3h 20m". Time\n'
-                                                   +35*' '+'and comment must be in quotes.',
-            'quit'                               : 'Quit Jira CLI',
-            'tickets [<assignee>]'               : 'Get list of assignee\'s tickets. Default is\n'
-                                                   +35*' '+'logged in user.',
+            'help'                              : help_descr,
+            'comment <ticket> "<comment>"'      : comment_descr,
+            'log <ticket> "<time>" "<comment>"' : log_descr,
+            'quit'                              : quit_descr,
+            'tickets [<assignee>]'              : tickets_descr,
             }
 
         title = "Command:"
@@ -198,17 +203,12 @@ class CLIReactor(object):
         self.write("%s %s Description:\n"
                        %(title, " "*(cols - len(title))), "header")
 
-        # commands = sorted(help_text.keys())
         commands = help_text.keys()
 
-        colors = ["list1", "list2"] # Color scheme for parameter list
-        count = 0
         for cmd in commands:
             spacing = " "*(cols - len(cmd))
             self.write("%s %s %s\n"
-                           %(cmd, spacing, help_text[cmd]), 'list1'# colors[count%2]
-)
-            count += 1
+                           %(cmd, spacing, help_text[cmd]))
 
     def dataReceived(self, data):
         """Handles request from the command line.
@@ -235,7 +235,7 @@ class CLIReactor(object):
 
         # Check if we have a valid command
         if command not in commands:
-            self.write("'{}' is an invalid command\n".format(command), "warning")
+            self.write("Invalid command '{}'\n" .format(command), "warning")
             self.write("Type 'help' to see all commands\n")
             return
 
