@@ -2,6 +2,14 @@
 
 ### Python3.6
 
+### Dependencies
+* requests
+
+To install, run:
+```sh
+$ sudo pip3 install requests
+```
+
 ### Run
 ```sh
 $ python3 cli.py
