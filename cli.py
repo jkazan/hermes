@@ -104,10 +104,8 @@ class CLIReactor(object):
         progress = []
         parent_keys = []
         summaries = []
-        epic_idx = []
-        subtask_parents = []
         tree = []
-        orphanage = ['Orphans', 'None', 'These children don\'t belong to an epic']
+        orphanage = ['Orphans', 'None', 'None', 'These children have no epic']
         has_orphanage = False
 
         # Find all parents
@@ -115,10 +113,17 @@ class CLIReactor(object):
             tickets.append(issues[i]['key'])
             issue_types.append(issues[i]['fields']['issuetype']['name'])
             s = issues[i]['fields']['summary']
-            summaries.append(s[0:35]+'...' if len(s)>38 else s)
+            summaries.append(s[0:34]+'...' if len(s)>37 else s)
+
+            try:
+                p = str(issues[i]['fields']['aggregateprogress']['percent'])+'%'
+            except Exception:
+                p = 'None'
+
+            progress.append(p)
 
             if issue_types[i] == "Epic":
-                parent = [tickets[i], issue_types[i], summaries[i]]
+                parent = [tickets[i], issue_types[i], progress[i], summaries[i]]
                 parent_keys.append(tickets[i])
                 tree.append((parent,[]))
 
@@ -126,7 +131,7 @@ class CLIReactor(object):
             if issue_types[i] == 'Sub-task':
                 parent_key = issues[i]['fields']['parent']['key']
                 if parent_key not in parent_keys:
-                    parent = [parent_key, 'Unknown', 'Unknown']
+                    parent = [parent_key, 'Unknown', 'Unknown', 'Unknown']
                     parent_keys.append(parent_key)
                     tree.append((parent,[]))
             else:
@@ -146,24 +151,26 @@ class CLIReactor(object):
 
             for parent, children in tree:
                 if parent[0] == parent_key:
-                    children.append([tickets[i], issue_types[i], summaries[i]])
-
-
+                    # print('{}' .format(progress[i]))
+                    children.append([tickets[i], issue_types[i], progress[i], summaries[i]])
 
         # Print headers
-        self.write('{:<18s}{:<15s}{}\n' .format('Ticket',
+        self.write('{:<18s}{:<15s}{:<10s}{}\n' .format('Ticket',
                                                   'Type',
+                                                  'Progress',
                                                   'Summary'), 'header')
         # Print tree
         for parent, children in tree:
-            self.write('{:<18s}{:<15}{}\n' .format(parent[0],
+            self.write('{:<18s}{:<15s}{:<10s}{}\n' .format(parent[0],
                                                         parent[1],
-                                                        parent[2]), 'epic')
+                                                        parent[2],
+                                                        parent[3]), 'epic')
 
             for child in children:
-                self.write('   {:<15s}{:<15s}{}\n' .format(child[0],
+                self.write('   {:<15s}{:<15s}{:<10s}{}\n' .format(child[0],
                                                             child[1],
-                                                            child[2]), 'task')
+                                                            child[2],
+                                                            child[3]), 'task')
 
     def cliQuit(self):
         """Quit CLI."""
