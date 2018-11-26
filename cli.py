@@ -116,15 +116,15 @@ class CLIReactor(object):
 
         return False
 
-    def tickets(self, user=None):
+    def tickets(self, key=None, target='assignee'):
         """Lists all tickets for assigned to user.
 
         :param user: Jira assignee
         """
-        if user is None:
-            user = self.user
+        if key is None and target == 'assignee':
+            key = self.user
 
-        url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee=' + user
+        url = 'https://jira.esss.lu.se/rest/api/2/search?jql='+target+'=' + key
         response = requests.get(url, auth=self.auth, headers=self.headers)
         response_ok = self.parse_response(response)
 
@@ -135,7 +135,7 @@ class CLIReactor(object):
         issues = data['issues']
 
         if not issues:
-            self.write('No tickets found for \'{}\' \n' .format(user),'warning')
+            self.write('No tickets found for \'{}\' \n' .format(key),'warning')
             return
 
         n = len(issues)
@@ -221,20 +221,20 @@ class CLIReactor(object):
     def help(self):
         """Print help text."""
         help_descr = 'List valid commands'
-        comment_descr = 'Comment on a tickets (comment in quotes).'
+        comment_descr = 'Comment on a tickets e.g. "comment".'
         log_descr = 'Log work, e.g. log "3h 20m" "comment".'
         quit_descr = 'Quit Jira CLI.'
         tickets_descr = 'List assignee\'s tickets.'
-        storeinfo_descr = 'Sore username and password to stay logged in.'
+        # project_descr = 'Get information about a project.'
 
         help_text = {
-            # name                                function
-            'help'                              : help_descr,
-            'comment <ticket> "<comment>"'      : comment_descr,
-            'log <ticket> "<time>" "<comment>"' : log_descr,
-            'quit'                              : quit_descr,
-            # 'storeinfo'                         : storeinfo_descr,
-            'tickets [<assignee>]'              : tickets_descr,
+            # name                                       function
+            'help'                                     : help_descr,
+            'comment <ticket> "<comment>"'             : comment_descr,
+            'log <ticket> "<time>" "<comment>"'        : log_descr,
+            'quit'                                     : quit_descr,
+            # 'project <project>'                      : project_descr,
+            'tickets [<assignee> | <project> project]' : tickets_descr,
             }
 
         title = "Command:"
@@ -252,10 +252,9 @@ class CLIReactor(object):
             self.write("%s %s %s\n"
                            %(cmd, spacing, help_text[cmd]))
 
-    def storeinfo(self):
+    def project(self):
         pass
-        # with open('jira_cli.user', 'a') as user_file:
-        #     user_file.write('{}\n' .format(self.user))
+
 
     def dataReceived(self, data):
         """Handles request from the command line.
@@ -277,7 +276,7 @@ class CLIReactor(object):
             "comment"       : self.comment,
             "log"           : self.log,
             "quit"          : self.quit,
-            "storeinfo"     : self.storeinfo,
+            # "storeinfo"     : self.storeinfo,
             "tickets"       : self.tickets,
             }
 
