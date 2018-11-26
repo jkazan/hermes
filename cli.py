@@ -7,6 +7,8 @@ import shlex
 import json
 from terminal_colors import Color
 import requests
+import getpass
+import inspect
 
 class CLIReactor(object):
     colors = {
@@ -34,7 +36,7 @@ class CLIReactor(object):
         self.auth = (user, passwd)
 
     def run(self):
-        self.cliHelp()
+        self.help()
         self.parse('ICSHWI-711 "1h 20m" "This is my comment"')
 
         while self.event_loop_active:
@@ -58,7 +60,7 @@ class CLIReactor(object):
         """
         sys.stdout.write(self.colors[color](string))
 
-    def cliComment(self, ticket, comment):
+    def comment(self, ticket, comment):
         """Comment on a Jira ticket.
 
         param ticket: Jira ticket key.
@@ -70,7 +72,7 @@ class CLIReactor(object):
             url, auth=self.auth, headers=self.headers, data=payload)
         self.parse_response(response, ticket)
 
-    def cliLog(self, ticket, time, comment):
+    def log(self, ticket, time, comment):
         """Log work.
 
         param ticket: Jira ticket key.
@@ -83,25 +85,38 @@ class CLIReactor(object):
             url, auth=self.auth, headers=self.headers, data=payload)
         self.parse_response(response, ticket)
 
-    def parse_response(self, response, ticket):
+    def parse_response(self, response, ticket=None):
         """Parse Jira response message
 
         :param response: Jira response message
         :param ticket: Jira ticket
+
+        :returns: True if request was successful, False otherwise
         """
         data = response.json()
 
-        if response.status_code == 201:
+        if response.status_code == 200:
+            return True # Successful 'get'
+        elif response.status_code == 201:
             self.write('Successfully posted\n', 'ok')
+            return True
         elif response.status_code == 400:
             errorMessages = data['errorMessages'][0]
-            errors = data['errors']['timeLogged']
-            self.write('{} {}\n' .format(errorMessages, errors), 'warning')
+            self.write('{}\n' .format(errorMessages), 'warning')
+            curframe = inspect.currentframe()
+            calframe = inspect.getouterframes(curframe, 2)
+
+            if calframe[1][3] == 'log':
+                errors = data['errors']['timeLogged']
+                self.write('{}\n' .format(errors), 'warning')
+
         elif response.status_code == 404:
             errorMessages = data['errorMessages'][0]
             self.write('{}\n' .format(errorMessages), 'warning')
 
-    def cliGetTickets(self, user=None):
+        return False
+
+    def tickets(self, user=None):
         """Lists all tickets for assigned to user.
 
         :param user: Jira assignee
@@ -111,8 +126,18 @@ class CLIReactor(object):
 
         url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee=' + user
         response = requests.get(url, auth=self.auth, headers=self.headers)
+        response_ok = self.parse_response(response)
+
+        if response_ok is False:
+            return
+
         data = response.json()
         issues = data['issues']
+
+        if not issues:
+            self.write('No tickets found for \'{}\' \n' .format(user),'warning')
+            return
+
         n = len(issues)
         tickets = []
         issue_types = []
@@ -188,24 +213,27 @@ class CLIReactor(object):
                                                             child[2],
                                                             child[3]), 'task')
 
-    def cliQuit(self):
+    def quit(self):
         """Quit CLI."""
         self.event_loop_active = False
         os.kill(os.getpid(), signal.SIGINT)
 
-    def cliHelp(self):
+    def help(self):
         """Print help text."""
         help_descr = 'List valid commands'
         comment_descr = 'Comment on a tickets (comment in quotes).'
-        log_descr = 'Log work, e.g. log "3h 20m" "comment"'
-        quit_descr = 'Quit Jira CLI'
+        log_descr = 'Log work, e.g. log "3h 20m" "comment".'
+        quit_descr = 'Quit Jira CLI.'
         tickets_descr = 'List assignee\'s tickets.'
+        storeinfo_descr = 'Sore username and password to stay logged in.'
 
         help_text = {
+            # name                                function
             'help'                              : help_descr,
             'comment <ticket> "<comment>"'      : comment_descr,
             'log <ticket> "<time>" "<comment>"' : log_descr,
             'quit'                              : quit_descr,
+            # 'storeinfo'                         : storeinfo_descr,
             'tickets [<assignee>]'              : tickets_descr,
             }
 
@@ -224,6 +252,11 @@ class CLIReactor(object):
             self.write("%s %s %s\n"
                            %(cmd, spacing, help_text[cmd]))
 
+    def storeinfo(self):
+        pass
+        # with open('jira_cli.user', 'a') as user_file:
+        #     user_file.write('{}\n' .format(self.user))
+
     def dataReceived(self, data):
         """Handles request from the command line.
 
@@ -239,12 +272,13 @@ class CLIReactor(object):
             return
 
         commands = {
-            # name            function
-            "help"          : self.cliHelp,
-            "comment"       : self.cliComment,
-            "log"           : self.cliLog,
-            "quit"          : self.cliQuit,
-            "tickets"       : self.cliGetTickets,
+            # name           function
+            "help"          : self.help,
+            "comment"       : self.comment,
+            "log"           : self.log,
+            "quit"          : self.quit,
+            "storeinfo"     : self.storeinfo,
+            "tickets"       : self.tickets,
             }
 
         # Check if we have a valid command
@@ -258,8 +292,8 @@ class CLIReactor(object):
         try:
             args = self.parse(data)
             function(*args)
-        except Exception as e:
-            self.write("{}\n".format(e), "warning")
+        except TypeError as type_error:
+            self.write("{}\n".format(type_error), "warning")
 
     def parse(self, args, comments=False, posix=True):
         test = shlex.split(args, comments, posix)
@@ -267,7 +301,8 @@ class CLIReactor(object):
 
 
 if __name__ == '__main__':
-    import getpass
+    # if os.path.isfile(os.path.join(repr(sys.argv[0]), 'jira_cli.user')):
+
     user = input("Jira username: ")
     passwd = getpass.getpass("Password: ")
 
