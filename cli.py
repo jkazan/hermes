@@ -10,7 +10,7 @@ import requests
 
 class CLIReactor(object):
     colors = {
-        'regular'  : Color(),
+        'regular' : Color(),
         'prompt'  : Color().bright_blue,
         'header'  : Color().bold.white,
         'warning' : Color().red,
@@ -25,7 +25,8 @@ class CLIReactor(object):
     def __init__(self, user, passwd):
         """Initialization.
 
-        :param sci_client: The SCI client.
+        :param user: Jira username
+        :param passwd: Jira password
         """
         self.event_loop_active = True
         self.headers = {'Content-Type': 'application/json',}
@@ -50,6 +51,11 @@ class CLIReactor(object):
                 pass
 
     def write(self, string, color="regular"):
+        """Print method with custom colors.
+
+        :param string: String to print
+        :param color: Font color, default is 'regular'
+        """
         sys.stdout.write(self.colors[color](string))
 
     def cliComment(self, ticket, comment):
@@ -78,6 +84,11 @@ class CLIReactor(object):
         self.parse_response(response, ticket)
 
     def parse_response(self, response, ticket):
+        """Parse Jira response message
+
+        :param response: Jira response message
+        :param ticket: Jira ticket
+        """
         data = response.json()
 
         if response.status_code == 201:
@@ -91,7 +102,10 @@ class CLIReactor(object):
             self.write('{}\n' .format(errorMessages), 'warning')
 
     def cliGetTickets(self, user=None):
-        """Lists all tickets for assigned to user."""
+        """Lists all tickets for assigned to user.
+
+        :param user: Jira assignee
+        """
         if user is None:
             user = self.user
 
