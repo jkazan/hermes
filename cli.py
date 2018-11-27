@@ -94,6 +94,9 @@ class CLIReactor(object):
         :returns: True if request was successful, False otherwise
         """
         data = response.json()
+        curframe = inspect.currentframe()
+        calframe = inspect.getouterframes(curframe, 2)
+        caller = calframe[1][3]
 
         if response.status_code == 200:
             return True # Successful 'get'
@@ -101,12 +104,14 @@ class CLIReactor(object):
             self.write('Successfully posted\n', 'ok')
             return True
         elif response.status_code == 400:
-            errorMessages = data['errorMessages'][0]
-            self.write('{}\n' .format(errorMessages), 'warning')
-            curframe = inspect.currentframe()
-            calframe = inspect.getouterframes(curframe, 2)
+            if data['errorMessages']:
+                errorMessages = data['errorMessages'][0]
+                self.write('{}\n' .format(errorMessages), 'warning')
 
-            if calframe[1][3] == 'log':
+            if caller == 'assign':
+                errors = data['errors']['assignee']
+                self.write('{}\n' .format(errors), 'warning')
+            elif caller == 'log':
                 errors = data['errors']['timeLogged']
                 self.write('{}\n' .format(errors), 'warning')
 
@@ -191,7 +196,6 @@ class CLIReactor(object):
 
             for parent, children in tree:
                 if parent[0] == parent_key:
-                    # print('{}' .format(progress[i]))
                     children.append(
                         [tickets[i], issue_types[i], progress[i], summaries[i]])
 
@@ -218,22 +222,34 @@ class CLIReactor(object):
         self.event_loop_active = False
         os.kill(os.getpid(), signal.SIGINT)
 
+    def forget(self):
+        """Forget logged in user."""
+        path = os.path.dirname(os.path.abspath(__file__))
+        user_file = 'jira_cli.user'
+        if os.path.isfile(path+'/'+user_file):
+            os.remove(path+'/'+user_file)
+            self.write('{} has been forgotten\n' .format(self.user), 'ok')
+        else:
+            self.write('{} was not known\n' .format(self.user), 'warning')
+
     def help(self):
         """Print help text."""
+        assign_descr = 'Assign an issue to a user.'
+        forget_descr = 'Forget logged in user.'
         help_descr = 'List valid commands'
         comment_descr = 'Comment on a tickets e.g. "comment".'
         log_descr = 'Log work, e.g. log "3h 20m" "comment".'
         quit_descr = 'Quit Jira CLI.'
         tickets_descr = 'List assignee\'s tickets.'
-        # project_descr = 'Get information about a project.'
 
         help_text = {
             # name                                       function
+            'assign <ticket> <assignee>'               : assign_descr,
             'help'                                     : help_descr,
+            'forget'                                   : forget_descr,
             'comment <ticket> "<comment>"'             : comment_descr,
             'log <ticket> "<time>" "<comment>"'        : log_descr,
             'quit'                                     : quit_descr,
-            # 'project <project>'                      : project_descr,
             'tickets [<assignee> | <project> project]' : tickets_descr,
             }
 
@@ -252,9 +268,30 @@ class CLIReactor(object):
             self.write("%s %s %s\n"
                            %(cmd, spacing, help_text[cmd]))
 
-    def project(self):
-        pass
+    def assign(self, ticket, user):
+        """Assign an issue to a user.
 
+        param ticket: Jira issue.
+        param user: The issue assigne to be set.
+        """
+        url = 'https://jira.esss.lu.se/rest/api/2/issue/'+ticket
+        payload = '{"fields":{"assignee":{"name":"'+user+'"}}}'
+        response = requests.put(
+            url, auth=self.auth, headers=self.headers, data=payload)
+
+        # Jira seems to return a bad json formatted string and the package
+        # 'requests' throws an exception. Until that is fixed, this will be
+        # caught and handled by the exception below.
+        try:
+            self.parse_response(response, ticket)
+        except json.decoder.JSONDecodeError as e:
+            s = str(response).split(']>')
+            s = s[0].split('[')
+            response_code = int(s[1])
+
+            if response_code == 204:
+                self.write('{} assigned to {}\n'
+                               .format(ticket, user), 'ok')
 
     def dataReceived(self, data):
         """Handles request from the command line.
@@ -272,11 +309,12 @@ class CLIReactor(object):
 
         commands = {
             # name           function
+            "assign"        : self.assign,
+            "forget"        : self.forget,
             "help"          : self.help,
             "comment"       : self.comment,
             "log"           : self.log,
             "quit"          : self.quit,
-            # "storeinfo"     : self.storeinfo,
             "tickets"       : self.tickets,
             }
 
@@ -300,10 +338,23 @@ class CLIReactor(object):
 
 
 if __name__ == '__main__':
-    # if os.path.isfile(os.path.join(repr(sys.argv[0]), 'jira_cli.user')):
+    user_file = 'jira_cli.user'
+    script_file = os.path.basename(__file__)
+    path = os.path.dirname(os.path.abspath(__file__))
 
-    user = input("Jira username: ")
-    passwd = getpass.getpass("Password: ")
+    if os.path.isfile(path+'/'+user_file):
+        with open(path+'/'+user_file, 'r') as f:
+            json_data = json.load(f)
+            user = json_data['user']
+
+        passwd = getpass.getpass("Password: ")
+    else:
+        user = input("Jira username: ")
+        passwd = getpass.getpass("Password: ")
+        remember = input("Remember username? [y/n]: ")
+        if remember == 'y':
+            with open(path+'/'+user_file, 'a') as f:
+                f.write('{"user":"'+user+'"}')
 
     reactor = CLIReactor(user, passwd)
     reactor.run()
