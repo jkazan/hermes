@@ -222,35 +222,50 @@ class CLIReactor(object):
         self.event_loop_active = False
         os.kill(os.getpid(), signal.SIGINT)
 
-    def forget(self):
-        """Forget logged in user."""
+    def setuser(self, action):
+        """Settings for logged in user.
+
+        param action: Remember or forget username.
+        """
         path = os.path.dirname(os.path.abspath(__file__))
         user_file = 'jira_cli.user'
-        if os.path.isfile(path+'/'+user_file):
-            os.remove(path+'/'+user_file)
-            self.write('{} has been forgotten\n' .format(self.user), 'ok')
+
+        if action == 'remember':
+            if os.path.isfile(path+'/'+user_file):
+                self.write('{} is already remembered\n'
+                               .format(self.user), 'warning')
+            else:
+                with open(path+'/'+user_file, 'a') as f:
+                    f.write('{"user":"'+user+'"}')
+                    self.write('{} will be remembered\n' .format(self.user), 'ok')
+        elif action == 'forget':
+            if os.path.isfile(path+'/'+user_file):
+                os.remove(path+'/'+user_file)
+                self.write('{} has been forgotten\n' .format(self.user), 'ok')
+            else:
+                self.write('{} was not known\n' .format(self.user), 'warning')
         else:
-            self.write('{} was not known\n' .format(self.user), 'warning')
+            self.write('Invalid action \'{}\'\n' .format(action), 'warning')
 
     def help(self):
         """Print help text."""
         assign_descr = 'Assign an issue to a user.'
-        forget_descr = 'Forget logged in user.'
         help_descr = 'List valid commands'
         comment_descr = 'Comment on a tickets e.g. "comment".'
         log_descr = 'Log work, e.g. log "3h 20m" "comment".'
         quit_descr = 'Quit Jira CLI.'
         tickets_descr = 'List assignee\'s tickets.'
+        setuser_descr = 'Remember or forget username.'
 
         help_text = {
-            # name                                       function
-            'assign <ticket> <assignee>'               : assign_descr,
-            'help'                                     : help_descr,
-            'forget'                                   : forget_descr,
-            'comment <ticket> "<comment>"'             : comment_descr,
-            'log <ticket> "<time>" "<comment>"'        : log_descr,
-            'quit'                                     : quit_descr,
-            'tickets [<assignee> | <project> project]' : tickets_descr,
+            # name                                     function
+            'assign <ticket> <assignee>'             : assign_descr,
+            'help'                                   : help_descr,
+            'comment <ticket> "<comment>"'           : comment_descr,
+            'log <ticket> "<time>" "<comment>"'      : log_descr,
+            'quit'                                   : quit_descr,
+            'tickets [<assignee>|<project> project]' : tickets_descr,
+            'setuser remember|forget'                : setuser_descr,
             }
 
         title = "Command:"
@@ -310,12 +325,12 @@ class CLIReactor(object):
         commands = {
             # name           function
             "assign"        : self.assign,
-            "forget"        : self.forget,
             "help"          : self.help,
             "comment"       : self.comment,
             "log"           : self.log,
             "quit"          : self.quit,
             "tickets"       : self.tickets,
+            "setuser"       : self.setuser,
             }
 
         # Check if we have a valid command
@@ -346,15 +361,9 @@ if __name__ == '__main__':
         with open(path+'/'+user_file, 'r') as f:
             json_data = json.load(f)
             user = json_data['user']
-
-        passwd = getpass.getpass("Password: ")
     else:
         user = input("Jira username: ")
-        passwd = getpass.getpass("Password: ")
-        remember = input("Remember username? [y/n]: ")
-        if remember == 'y':
-            with open(path+'/'+user_file, 'a') as f:
-                f.write('{"user":"'+user+'"}')
 
+    passwd = getpass.getpass("Password: ")
     reactor = CLIReactor(user, passwd)
     reactor.run()
