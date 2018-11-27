@@ -222,7 +222,7 @@ class CLIReactor(object):
         self.event_loop_active = False
         os.kill(os.getpid(), signal.SIGINT)
 
-    def setuser(self, action):
+    def username(self, action):
         """Settings for logged in user.
 
         param action: Remember or forget username.
@@ -255,7 +255,7 @@ class CLIReactor(object):
         log_descr = 'Log work, e.g. log "3h 20m" "comment".'
         quit_descr = 'Quit Jira CLI.'
         tickets_descr = 'List assignee\'s tickets.'
-        setuser_descr = 'Remember or forget username.'
+        username_descr = 'Remember or forget username.'
 
         help_text = {
             # name                                     function
@@ -265,7 +265,7 @@ class CLIReactor(object):
             'log <ticket> "<time>" "<comment>"'      : log_descr,
             'quit'                                   : quit_descr,
             'tickets [<assignee>|<project> project]' : tickets_descr,
-            'setuser remember|forget'                : setuser_descr,
+            'username remember|forget'                : username_descr,
             }
 
         title = "Command:"
@@ -330,7 +330,7 @@ class CLIReactor(object):
             "log"           : self.log,
             "quit"          : self.quit,
             "tickets"       : self.tickets,
-            "setuser"       : self.setuser,
+            "username"      : self.username,
             }
 
         # Check if we have a valid command
