@@ -9,6 +9,7 @@ from terminal_colors import Color
 import requests
 import getpass
 import inspect
+import subprocess
 
 class CLIReactor(object):
     colors = {
@@ -222,6 +223,40 @@ class CLIReactor(object):
         self.event_loop_active = False
         os.kill(os.getpid(), signal.SIGINT)
 
+    def install(self, tool, *args):
+        """Install software tool.
+
+        param action: Remember or forget username.
+        """
+        # Put arguments in correct format to call script
+        fargs = ''
+        for arg in args:
+            fargs += arg + ' '
+
+        path = os.path.dirname(os.path.abspath(__file__)) # Path to cli dir
+
+        if tool == 'e3':
+            if not fargs:
+                self.write('Usage: e3 -d <install path>\n', 'warning')
+                return
+
+            self.write('Installing {}\n' .format(tool), 'task')
+            ret_code = subprocess.check_call('{}/e3.install {}'
+                                               .format(path, fargs), shell=True)
+
+
+        elif tool == 'plcfactory':
+            self.write('\'{}\' is not yet available for installation.\n'
+                           .format(tool), 'warning')
+
+        else:
+            self.write('\'{}\' is not available for installation\n'
+                           .format(tool), 'warning')
+            return
+
+        if ret_code != 0:
+            self.write('\'{}\' installation failed\n' .format(tool), 'warning')
+
     def username(self, action):
         """Settings for logged in user.
 
@@ -254,18 +289,24 @@ class CLIReactor(object):
         comment_descr = 'Comment on a tickets e.g. "comment".'
         log_descr = 'Log work, e.g. log "3h 20m" "comment".'
         quit_descr = 'Quit Jira CLI.'
-        tickets_descr = 'List assignee\'s tickets.'
+        tickets_a_descr = 'List assignee\'s tickets.'
+        tickets_p_descr = 'List project\'s tickets.'
         username_descr = 'Remember or forget username.'
+        install_e3 = 'Install e3 with epics 7 + common mods.'
+        install_plcf = 'Install plcfactory.'
 
         help_text = {
-            # name                                     function
-            'assign <ticket> <assignee>'             : assign_descr,
-            'help'                                   : help_descr,
-            'comment <ticket> "<comment>"'           : comment_descr,
-            'log <ticket> "<time>" "<comment>"'      : log_descr,
-            'quit'                                   : quit_descr,
-            'tickets [<assignee>|<project> project]' : tickets_descr,
-            'username remember|forget'                : username_descr,
+            # name                                      function
+            'assign    <ticket> <assignee>'           : assign_descr,
+            'help'                                    : help_descr,
+            'comment   <ticket> "<comment>"'          : comment_descr,
+            'log       <ticket> "<time>" "<comment>"' : log_descr,
+            'quit'                                    : quit_descr,
+            'tickets   [<assignee>]'                  : tickets_a_descr,
+            '          [<project> project]'           : tickets_p_descr,
+            'username  remember|forget'               : username_descr,
+            'install   e3 -d <install path>'          : install_e3,
+            '          plcfactory <install path>'     : install_plcf,
             }
 
         title = "Command:"
@@ -324,6 +365,7 @@ class CLIReactor(object):
 
         commands = {
             # name           function
+            #          JIRA
             "assign"        : self.assign,
             "help"          : self.help,
             "comment"       : self.comment,
@@ -331,6 +373,8 @@ class CLIReactor(object):
             "quit"          : self.quit,
             "tickets"       : self.tickets,
             "username"      : self.username,
+            #           E3
+            "install"      : self.install,
             }
 
         # Check if we have a valid command
