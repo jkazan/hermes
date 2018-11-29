@@ -15,87 +15,38 @@ main() {
     cd $E3DIR
 
     # Clone e3
-    git clone https://github.com/icshwi/e3
+    sudo -u $SUDO_USER git clone https://github.com/icshwi/e3
     cd e3/
 
     # Configure for EPICS 7
-    yes Y | bash e3_building_config.bash -t $E3DIR -b 7.0.1.1 setup
+    yes Y | sudo -u $SUDO_USER bash e3_building_config.bash -t $E3DIR -b 7.0.1.1 setup
 
     # Install base within the e3 directory
-    yes Y | ./e3.bash base
+    yes Y | sudo -u $SUDO_USER ./e3.bash base
 
     # Install require within the e3 directory
     ./e3.bash req
 
     # Install common modules within the e3 directory
-    bash e3.bash -c mod
-
-    # Add alias for sourcing e3 environment
-    echo $'\n\n# E3 alias\nalias e3="source ${E3DIR}/e3/tools/setenv"' >> \
-    ~/.bashrc
+    ./e3.bash -c mod
 
     cd $E3DIR
 
     # Clone e3-tools
-    git clone https://github.com/icshwi/e3-tools
-
-    echo $'\n\n\n\nInstallation complete\n\n'
-    echo "The following was performed:"
-    echo "Cloned e3 into ${E3DIR}"
-    echo "Configured e3 to emply epics 7"
-    echo "Installed epics base"
-    echo "Installed require"
-    echo "Installed common modules ('bash $E3DIR/e3/e3.bash' to add modules)"
-    echo "Cloned e3-tools into ${E3DIR}"
-    echo "Added alias 'e3' into ~/.bashrc file to source e3 environment"
-
-    notify-send E3 "Installation complete."
+    sudo -u $SUDO_USER git clone https://github.com/icshwi/e3-tools
 }
 
-# Check for sudo priviledges, ask for password if necessary
-[ "$UID" -eq 0 ] || exec sudo "$0" "$@"
+E3DIR=$1
 
-E3DIR=''
-
-# Parse e3.install options
-while getopts ":hd:" opt; do
-    case $opt in
-        h)  echo "e3 installer"
-            echo ""
-            echo "Usage: e3.install [OPTION]"
-            echo ""
-            echo "Options:"
-            echo "  -h         show brief help"
-            echo "  -d <PATH>  target directory for installation"
-            exit 0
-            ;;
-        d)  if [ ! -d "$OPTARG" ] ; then
-                echo -n "$OPTARG directory not found. "
-                read -rp $"Would you like to create it [Y\n]? " -n 1
-                echo
-                if [[ "$REPLY" == [Yy] ]] ; then
-                    E3DIR=$OPTARG
-                    main
-                else
-                    exit 0
-                fi
-            else
-                E3DIR=$OPTARG
-                main
-            fi
-            ;;
-        ?) echo "Invalid option $*" >&2
-           echo ""
-           echo "Usage: e3.install [OPTION]"
-           echo "Try 'e3.install -h' for more information."
-           exit 2
-           ;;
-    esac
-done
-
-# No option was passed to e3.install
-if [ -z "$E3DIR" ] ; then
-    echo "Usage: e3.install [OPTION]"
-    echo "Try 'e3.install -h' for more information."
-    exit
+if [ ! -d "$E3DIR" ] ; then
+    echo -n "$E3DIR directory not found. "
+    read -rp $"Would you like to create it [Y\n]? " -n 1
+    echo
+    if [[ "$REPLY" == [Yy] ]] ; then
+        main
+    else
+        exit 0
+    fi
+else
+    main
 fi
