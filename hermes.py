@@ -10,6 +10,7 @@ import requests
 import getpass
 import inspect
 import subprocess
+import re
 
 class CLIReactor(object):
     colors = {
@@ -23,26 +24,23 @@ class CLIReactor(object):
         'epic'    : Color().magenta,
         'orphan'  : Color(),
         'ok'      : Color().green,
+        'tip'     : Color().yellow,
     }
 
-    def __init__(self, user, passwd):
-        """Initialization.
-
-        :param user: Jira username
-        :param passwd: Jira password
-        """
+    def __init__(self):
+        """Initialization."""
         self.event_loop_active = True
         self.headers = {'Content-Type': 'application/json',}
-        self.user = user
-        self.auth = (user, passwd)
+        self.user = None
+        self.auth = (self.user, None)
 
     def run(self):
+        """Run script."""
         self.help()
-        self.parse('ICSHWI-711 "1h 20m" "This is my comment"')
 
         while self.event_loop_active:
             prompt_color = self.colors['prompt'].readline_escape
-            prompt = "{} >> ".format(prompt_color('jira'))
+            prompt = "{} >> ".format(prompt_color('Hermes'))
 
             try:
                 self.dataReceived(input(prompt))
@@ -67,11 +65,13 @@ class CLIReactor(object):
         param ticket: Jira ticket key.
         param comment: Comment to post to ticket.
         """
+        self.jiraLogin()
+
         url = 'https://jira.esss.lu.se/rest/api/latest/issue/'+ticket+'/comment'
         payload = '{"body":"'+comment+'"}'
         response = requests.post(
             url, auth=self.auth, headers=self.headers, data=payload)
-        self.parse_response(response, ticket)
+        self.response_ok(response, ticket)
 
     def log(self, ticket, time, comment):
         """Log work.
@@ -80,13 +80,15 @@ class CLIReactor(object):
         param time: Time spent to post to ticket's work log..
         param comment: Comment to post to ticket's work log.
         """
+        self.jiraLogin()
+
         url = 'https://jira.esss.lu.se/rest/api/2/issue/'+ticket+'/worklog'
         payload = '{"timeSpent":"'+time+'","comment":"'+comment+'"}'
         response = requests.post(
             url, auth=self.auth, headers=self.headers, data=payload)
-        self.parse_response(response, ticket)
+        self.response_ok(response, ticket)
 
-    def parse_response(self, response, ticket=None):
+    def response_ok(self, response, ticket=None):
         """Parse Jira response message
 
         :param response: Jira response message
@@ -123,16 +125,19 @@ class CLIReactor(object):
         return False
 
     def tickets(self, key=None, target='assignee'):
-        """Lists all tickets for assigned to user.
+        """Lists all tickets for assigned to a user or project.
 
-        :param user: Jira assignee
+        :param key: Name of Jira user or project
+        :param target: 'assignee' or 'project', default is 'assignee'
         """
+        self.jiraLogin()
+
         if key is None and target == 'assignee':
             key = self.user
 
         url = 'https://jira.esss.lu.se/rest/api/2/search?jql='+target+'=' + key
         response = requests.get(url, auth=self.auth, headers=self.headers)
-        response_ok = self.parse_response(response)
+        response_ok = self.response_ok(response)
 
         if response_ok is False:
             return
@@ -226,41 +231,101 @@ class CLIReactor(object):
     def install(self, tool, *args):
         """Install software tool.
 
-        param action: Remember or forget username.
+        param tool: Name of tool to install
+        param args: Input arguments needed for installation
         """
-        # Put arguments in correct format to call script
-        fargs = ''
-        for arg in args:
-            fargs += arg + ' '
-
         path = os.path.dirname(os.path.abspath(__file__)) # Path to cli dir
 
         if tool == 'e3':
-            if not fargs:
-                self.write('Usage: e3 -d <install path>\n', 'warning')
-                return
-
-            self.write('Installing {}\n' .format(tool), 'task')
-            ret_code = subprocess.check_call('{}/e3.install {}'
-                                               .format(path, fargs), shell=True)
+            # if not args:
+            #     self.write('Usage: e3 <install path>\n', 'warning')
+            #     return
+            try:
+                self.write('Installing {}\n' .format(tool), 'task')
+                ret_code = subprocess.check_call('sudo {}/e3.install {}'
+                                                .format(path, ' '.join(args)),
+                                                    shell=True)
+            except subprocess.CalledProcessError as e:
+                pass
+                # self.write(e, 'warning')
 
 
         elif tool == 'plcfactory':
-            self.write('\'{}\' is not yet available for installation.\n'
-                           .format(tool), 'warning')
+            if not args:
+                self.write('Usage: install plcfactory <install path>\n', 'warning')
+                return
+            if not os.path.isdir(' '.join(list(args))):
+                self.write('\'{}\' directory does not exist\n'
+                               .format(' '.join(list(args))), 'warning')
+                return
 
-        else:
-            self.write('\'{}\' is not available for installation\n'
-                           .format(tool), 'warning')
-            return
+            repo_url = 'https://bitbucket.org/europeanspallationsource/ics_plc_factory.git'
 
-        if ret_code != 0:
-            self.write('\'{}\' installation failed\n' .format(tool), 'warning')
+            try:
+                ret_code = subprocess.check_call('git clone {} {}{}'
+                                                 .format(repo_url,
+                                                             ' '.join(list(args)),
+                                                             '/ics_plc_factory'),
+                                                     shell=True)
+            except Exception as e:
+                print(e)
+
+        elif tool == 'css':
+            url = 'https://artifactory.esss.lu.se/artifactory/CS-Studio/development/'
+            params = {'q': 'ISOW7841FDWER'}
+            headers = {'User-Agent': 'Mozilla/5'}
+            r = requests.get(url, params=params, headers=headers)
+            pattern = re.compile("[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+b[0-9]+")
+            version = pattern.findall(r.text)[-1]
+            self.write('Downloading\n', 'task')
+
+            if sys.platform == 'linux':
+                file_name = 'cs-studio-ess-'+version+'-linux.gtk.x86_64.tar.gz'
+
+            url += version+'/'+file_name
+
+            with open(path+'/'+file_name, 'wb') as f:
+                response = requests.get(url, stream=True)
+                total_length = int(response.headers.get('content-length'))
+                dl = 0
+                for data in response.iter_content(chunk_size=4096):
+                    dl += len(data)
+                    f.write(data)
+                    progress = int(100 * dl / total_length)
+                    self.write('\r{}%' .format(progress), 'task')
+                    # self.write("\r[%s%s]" % ('=' * done, ' ' * (50-done)),
+                    #                'task')
+                    sys.stdout.flush()
+
+            self.write("\nInstalling\n", 'task')
+            destination = ' '.join(args)
+            ret_code = subprocess.check_call('tar xzf {} -C {} && rm -rf {}'
+                                                 .format(path+'/'+file_name,
+                                                             destination,
+                                                             path+'/'+file_name),
+                                                 shell=True)
+            self.write("Done\n", 'task')
+
+            self.write('Tip: If you want to be able to start CSS from '
+                           +'anywhere in your terminal by just\ntyping "css"'
+                           +', put the following line in your ~/.bashrc file\n',
+                           'tip')
+
+            self.write('alias css=\'{}/cs-studio/ESS\ CS-Studio\'\n'
+                           .format(destination), 'task')
+
+        # else:
+        #     self.write('\'{}\' is not available for installation\n'
+        #                    .format(tool), 'warning')
+        #     return
+
+        # if ret_code != 0:
+        #     self.write('\'{}\' installation failed\n' .format(tool), 'warning')
 
     def username(self, action):
         """Settings for logged in user.
 
-        param action: Remember or forget username.
+        param action: 'remember' or 'forget' username
         """
         path = os.path.dirname(os.path.abspath(__file__))
         user_file = 'jira_cli.user'
@@ -293,9 +358,10 @@ class CLIReactor(object):
         tickets_p_descr = 'List project\'s tickets.'
         username_descr = 'Remember or forget username.'
         install_e3 = 'Install e3 with epics 7 + common mods.'
-        install_plcf = 'Install plcfactory.'
+        install_css = 'Install lastest beta version of css.'
+        install_plcf = 'Install plc factory.'
 
-        help_text = {
+        jira_help_text = {
             # name                                      function
             'assign    <ticket> <assignee>'           : assign_descr,
             'help'                                    : help_descr,
@@ -304,25 +370,48 @@ class CLIReactor(object):
             'quit'                                    : quit_descr,
             'tickets   [<assignee>]'                  : tickets_a_descr,
             '          [<project> project]'           : tickets_p_descr,
-            'username  remember|forget'               : username_descr,
+            'username  remember | forget'             : username_descr,
             'install   e3 -d <install path>'          : install_e3,
+            '          css <install path>'            : install_css,
             '          plcfactory <install path>'     : install_plcf,
             }
 
-        title = "Command:"
+        title = "Jira commands:"
 
         # Find longest command in order to make list as compact as possible
-        cols = max(len(max(help_text.keys(), key=lambda x: len(x))), len(title))
+        cols = max(len(max(jira_help_text.keys(), key=lambda x: len(x))), len(title))
 
         self.write("%s %s Description:\n"
                        %(title, " "*(cols - len(title))), "header")
 
-        commands = help_text.keys()
+        commands = jira_help_text.keys()
 
         for cmd in commands:
             spacing = " "*(cols - len(cmd))
             self.write("%s %s %s\n"
-                           %(cmd, spacing, help_text[cmd]))
+                           %(cmd, spacing, jira_help_text[cmd]))
+
+
+        install_help_text = {
+            # name                                      function
+            'install   e3 <install path>'             : install_e3,
+            '          css <install path>'            : install_css,
+            '          plcfactory <install path>'     : install_plcf,
+            }
+
+
+        title = "Install commands:"
+
+        self.write("\n{} {} Description:\n"
+                       .format(title, " "*(cols - len(title))), "header")
+
+        commands = install_help_text.keys()
+
+        for cmd in commands:
+            spacing = " "*(cols - len(cmd))
+            self.write("%s %s %s\n"
+                           %(cmd, spacing, install_help_text[cmd]))
+
 
     def assign(self, ticket, user):
         """Assign an issue to a user.
@@ -330,6 +419,8 @@ class CLIReactor(object):
         param ticket: Jira issue.
         param user: The issue assigne to be set.
         """
+        self.jiraLogin()
+
         url = 'https://jira.esss.lu.se/rest/api/2/issue/'+ticket
         payload = '{"fields":{"assignee":{"name":"'+user+'"}}}'
         response = requests.put(
@@ -339,7 +430,7 @@ class CLIReactor(object):
         # 'requests' throws an exception. Until that is fixed, this will be
         # caught and handled by the exception below.
         try:
-            self.parse_response(response, ticket)
+            self.response_ok(response, ticket)
         except json.decoder.JSONDecodeError as e:
             s = str(response).split(']>')
             s = s[0].split('[')
@@ -365,7 +456,7 @@ class CLIReactor(object):
 
         commands = {
             # name           function
-            #          JIRA
+            # JIRA ########################
             "assign"        : self.assign,
             "help"          : self.help,
             "comment"       : self.comment,
@@ -373,7 +464,7 @@ class CLIReactor(object):
             "quit"          : self.quit,
             "tickets"       : self.tickets,
             "username"      : self.username,
-            #           E3
+            # INSTALL #####################
             "install"      : self.install,
             }
 
@@ -395,19 +486,25 @@ class CLIReactor(object):
         test = shlex.split(args, comments, posix)
         return test
 
+    def jiraLogin(self):
+        user_file = 'jira.user'
+        script_file = os.path.basename(__file__)
+        path = os.path.dirname(os.path.abspath(__file__))
+
+        if self.user is not None:
+            return
+
+        if os.path.isfile(path+'/'+user_file):
+            with open(path+'/'+user_file, 'r') as f:
+                json_data = json.load(f)
+                self.user = json_data['user']
+        else:
+            self.user = input("Jira username: ")
+
+        password = getpass.getpass("Password: ")
+        self.auth = (self.user, password)
+
 
 if __name__ == '__main__':
-    user_file = 'jira_cli.user'
-    script_file = os.path.basename(__file__)
-    path = os.path.dirname(os.path.abspath(__file__))
-
-    if os.path.isfile(path+'/'+user_file):
-        with open(path+'/'+user_file, 'r') as f:
-            json_data = json.load(f)
-            user = json_data['user']
-    else:
-        user = input("Jira username: ")
-
-    passwd = getpass.getpass("Password: ")
-    reactor = CLIReactor(user, passwd)
+    reactor = CLIReactor()
     reactor.run()
