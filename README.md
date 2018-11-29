@@ -1,18 +1,33 @@
-# Jira Command Line Interface (CLI)
-
-### Python3.6
+# Hermes CLI
+### Running in Python3
 
 ### Dependencies
 * requests
 
-To install, run:
+### Install on mac
+Install python3 and pip3
+```sh
+$ brew install python3
+$ brew postinstall python3
+```
+Install package 'requests'
+```sh
+$ sudo pip3 install requests
+```
+
+### Install on ubuntu
+Install python3 and pip3
+```sh
+$ sudo apt-get install python3 python3-pip
+```
+Install package 'requests'
 ```sh
 $ sudo pip3 install requests
 ```
 
 ### Run
 ```sh
-$ python3 cli.py
+$ python3 <path to hermes>/cli.py
 ```
 
 ### Caveat
