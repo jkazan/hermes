@@ -367,10 +367,10 @@ class CLIReactor(object):
     def help(self):
         """Print help text."""
         assign_descr = 'Assign an issue to a user.'
-        help_descr = 'List valid commands'
+        help_descr = 'List commands (show this message).'
         comment_descr = 'Comment on a tickets e.g. "comment".'
         log_descr = 'Log work, e.g. log "3h 20m" "comment".'
-        quit_descr = 'Quit Jira CLI.'
+        quit_descr = 'Quit Hermes.'
         tickets_a_descr = 'List assignee\'s tickets.'
         tickets_p_descr = 'List project\'s tickets.'
         username_descr = 'Remember or forget username.'
@@ -378,28 +378,40 @@ class CLIReactor(object):
         install_css = 'Install lastest beta version of css.'
         install_plcf = 'Install plc factory.'
 
+        generic_help_text = {
+            'help' : help_descr,
+            'quit' : quit_descr,
+            }
+
         jira_help_text = {
             # name                                      function
             'assign    <ticket> <assignee>'           : assign_descr,
-            'help'                                    : help_descr,
             'comment   <ticket> "<comment>"'          : comment_descr,
             'log       <ticket> "<time>" "<comment>"' : log_descr,
-            'quit'                                    : quit_descr,
             'tickets   [<assignee>]'                  : tickets_a_descr,
             '          [<project> project]'           : tickets_p_descr,
             'username  remember | forget'             : username_descr,
-            'install   e3 -d <install path>'          : install_e3,
-            '          css <install path>'            : install_css,
-            '          plcfactory <install path>'     : install_plcf,
             }
 
         title = "Jira commands:"
-
         # Find longest command in order to make list as compact as possible
         cols = max(len(max(jira_help_text.keys(), key=lambda x: len(x))), len(title))
 
+        title = "Generic commands"
         self.write("%s %s Description:\n"
                        %(title, " "*(cols - len(title))), "header")
+
+        commands = generic_help_text.keys()
+
+        for cmd in commands:
+            spacing = " "*(cols - len(cmd))
+            self.write("%s %s %s\n"
+                           %(cmd, spacing, generic_help_text[cmd]))
+
+        title = "Jira commands:"
+
+        self.write('\n{} {} Description:\n'
+                       .format(title, " "*(cols - len(title))), "header")
 
         commands = jira_help_text.keys()
 
