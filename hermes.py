@@ -228,47 +228,57 @@ class CLIReactor(object):
         self.event_loop_active = False
         os.kill(os.getpid(), signal.SIGINT)
 
-    def install(self, tool, *args):
+    def install(self, tool, dest):
         """Install software tool.
 
         param tool: Name of tool to install
         param args: Input arguments needed for installation
         """
+        sudo = False
         path = os.path.dirname(os.path.abspath(__file__)) # Path to cli dir
+        dest = os.path.expanduser(dest)
+
+        if not os.access(dest, os.W_OK):
+            self.write('You need sudo privileges to write in {}\n' .format(dest))
+            q_sudo = input('Would you like to run as sudo? [Y/n]: ').lower()
+            if q_sudo == "y":
+                sudo = True
+            else:
+                return
+
+        if not os.path.exists(dest):
+            create = input('Directory does not exist, '
+                           +'would you like to create it? [Y/n]: ').lower()
+            if create == "y":
+                os.makedirs(dest)
+            else:
+                return
 
         if tool == 'e3':
-            # if not args:
-            #     self.write('Usage: e3 <install path>\n', 'warning')
-            #     return
             try:
                 self.write('Installing {}\n' .format(tool), 'task')
                 ret_code = subprocess.check_call('sudo {}/e3.install {}'
                                                 .format(path, ' '.join(args)),
                                                     shell=True)
             except subprocess.CalledProcessError as e:
-                pass
-                # self.write(e, 'warning')
-
+                self.write(e, 'warning')
 
         elif tool == 'plcfactory':
-            if not args:
-                self.write('Usage: install plcfactory <install path>\n', 'warning')
-                return
-            if not os.path.isdir(' '.join(list(args))):
-                self.write('\'{}\' directory does not exist\n'
-                               .format(' '.join(list(args))), 'warning')
-                return
-
             repo_url = 'https://bitbucket.org/europeanspallationsource/ics_plc_factory.git'
 
             try:
-                ret_code = subprocess.check_call('git clone {} {}{}'
-                                                 .format(repo_url,
-                                                             ' '.join(list(args)),
-                                                             '/ics_plc_factory'),
-                                                     shell=True)
+                if sudo:
+                    ret_code = subprocess.check_call('sudo git clone {} {}{}'
+                                                         .format(repo_url, dest,
+                                                            '/ics_plc_factory'),
+                                                         shell=True)
+                else:
+                    ret_code = subprocess.check_call('git clone {} {}{}'
+                                                         .format(repo_url, dest,
+                                                            '/ics_plc_factory'),
+                                                         shell=True)
             except Exception as e:
-                print(e)
+                self.write(e, 'warning')
 
         elif tool == 'css':
             url = 'https://artifactory.esss.lu.se/artifactory/CS-Studio/development/'
@@ -298,10 +308,16 @@ class CLIReactor(object):
                     sys.stdout.flush()
 
             self.write("\nInstalling\n", 'task')
-            destination = ' '.join(args)
-            ret_code = subprocess.check_call('tar xzf {} -C {} && rm -rf {}'
+            if sudo:
+                ret_code = subprocess.check_call('sudo tar xzf {} -C {} && rm -rf {}'
                                                  .format(path+'/'+file_name,
-                                                             destination,
+                                                             dest,
+                                                             path+'/'+file_name),
+                                                 shell=True)
+            else:
+                ret_code = subprocess.check_call('tar xzf {} -C {} && rm -rf {}'
+                                                 .format(path+'/'+file_name,
+                                                             dest,
                                                              path+'/'+file_name),
                                                  shell=True)
             self.write("Done\n", 'task')
@@ -312,15 +328,16 @@ class CLIReactor(object):
                            'tip')
 
             self.write('alias css=\'{}/cs-studio/ESS\ CS-Studio\'\n'
-                           .format(destination), 'task')
+                           .format(dest), 'task')
 
-        # else:
-        #     self.write('\'{}\' is not available for installation\n'
-        #                    .format(tool), 'warning')
-        #     return
+        else:
+            self.write('\'{}\' is not available for installation\n'
+                           .format(tool), 'warning')
+            return
 
-        # if ret_code != 0:
-        #     self.write('\'{}\' installation failed\n' .format(tool), 'warning')
+        if ret_code != 0:
+            self.write('\'{}\' installation failed\n' .format(tool), 'warning')
+            return
 
     def username(self, action):
         """Settings for logged in user.
