@@ -13,16 +13,14 @@ import subprocess
 import re
 
 class CLIReactor(object):
+    """Hermes Command Line Interface."""
     colors = {
         'regular' : Color(),
         'prompt'  : Color().bright_blue,
         'header'  : Color().bold.white,
         'warning' : Color().red,
-        'list1'   : Color(),
-        'list2'   : Color().faint,
         'task'    : Color().cyan,
         'epic'    : Color().magenta,
-        'orphan'  : Color(),
         'ok'      : Color().green,
         'tip'     : Color().yellow,
     }
@@ -342,6 +340,10 @@ class CLIReactor(object):
     def username(self, action):
         """Settings for logged in user.
 
+        Username can be stored in local file, or removed from
+        it. Remembering the username will enable logging into Jira using
+        password only.
+
         param action: 'remember' or 'forget' username
         """
         path = os.path.dirname(os.path.abspath(__file__))
@@ -378,69 +380,40 @@ class CLIReactor(object):
         install_css = 'Install lastest beta version of css.'
         install_plcf = 'Install plc factory.'
 
-        generic_help_text = {
-            'help' : help_descr,
-            'quit' : quit_descr,
-            }
-
-        jira_help_text = {
+        help_text = {
             # name                                      function
+            'Hermes'                                  : None,
+            'help'                                    : help_descr,
+            'quit'                                    : quit_descr,
+            'Jira'                                    : None,
             'assign    <ticket> <assignee>'           : assign_descr,
             'comment   <ticket> "<comment>"'          : comment_descr,
             'log       <ticket> "<time>" "<comment>"' : log_descr,
             'tickets   [<assignee>]'                  : tickets_a_descr,
             '          [<project> project]'           : tickets_p_descr,
             'username  remember | forget'             : username_descr,
-            }
-
-        title = "Jira commands:"
-        # Find longest command in order to make list as compact as possible
-        cols = max(len(max(jira_help_text.keys(), key=lambda x: len(x))), len(title))
-
-        title = "Generic commands"
-        self.write("%s %s Description:\n"
-                       %(title, " "*(cols - len(title))), "header")
-
-        commands = generic_help_text.keys()
-
-        for cmd in commands:
-            spacing = " "*(cols - len(cmd))
-            self.write("%s %s %s\n"
-                           %(cmd, spacing, generic_help_text[cmd]))
-
-        title = "Jira commands:"
-
-        self.write('\n{} {} Description:\n'
-                       .format(title, " "*(cols - len(title))), "header")
-
-        commands = jira_help_text.keys()
-
-        for cmd in commands:
-            spacing = " "*(cols - len(cmd))
-            self.write("%s %s %s\n"
-                           %(cmd, spacing, jira_help_text[cmd]))
-
-
-        install_help_text = {
-            # name                                      function
+            'Installation'                            : None,
             'install   e3 <install path>'             : install_e3,
             '          css <install path>'            : install_css,
             '          plcfactory <install path>'     : install_plcf,
             }
 
+        title = "Commands:"
+        # Find longest command in order to make list as compact as possible
+        cols = max(len(max(help_text.keys(), key=lambda x: len(x))), len(title))
 
-        title = "Install commands:"
-
-        self.write("\n{} {} Description:\n"
+        self.write('{} {} Description:'
                        .format(title, " "*(cols - len(title))), "header")
 
-        commands = install_help_text.keys()
+        commands = help_text.keys()
 
         for cmd in commands:
             spacing = " "*(cols - len(cmd))
-            self.write("%s %s %s\n"
-                           %(cmd, spacing, install_help_text[cmd]))
-
+            if help_text[cmd] is None:
+                self.write('\n({})\n' .format(cmd), 'task')
+            else:
+                self.write("%s %s %s\n"
+                           %(cmd, spacing, help_text[cmd]))
 
     def assign(self, ticket, user):
         """Assign an issue to a user.
@@ -512,10 +485,19 @@ class CLIReactor(object):
             self.write("{}\n".format(type_error), "warning")
 
     def parse(self, args, comments=False, posix=True):
-        test = shlex.split(args, comments, posix)
-        return test
+        """Parse command from command line.
+
+        :param args: Command line arguments
+        :param comments: shlex parameter
+        :param posix: shlex parameter
+
+        :returns: Split arguments
+        """
+        slit_args = shlex.split(args, comments, posix)
+        return slit_args
 
     def jiraLogin(self):
+        """" Login to Jira account. """
         user_file = 'jira.user'
         script_file = os.path.basename(__file__)
         path = os.path.dirname(os.path.abspath(__file__))
