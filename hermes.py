@@ -236,6 +236,7 @@ class CLIReactor(object):
         path = os.path.dirname(os.path.abspath(__file__)) # Path to cli dir
         dest = os.path.expanduser(dest)
 
+        # Check privileges
         if not os.access(dest, os.W_OK):
             self.write('You need sudo privileges to write in {}\n' .format(dest))
             q_sudo = input('Would you like to run as sudo? [Y/n]: ').lower()
@@ -244,6 +245,7 @@ class CLIReactor(object):
             else:
                 return
 
+        # Check if destination directory exists
         if not os.path.exists(dest):
             create = input('Directory does not exist, '
                            +'would you like to create it? [Y/n]: ').lower()
@@ -253,15 +255,27 @@ class CLIReactor(object):
                 return
 
         if tool == 'e3':
+            if os.path.exists(dest+'/e3'):
+                overwrite = input('E3 found in the destination directory. '
+                                   +'Overwrite existing E3? [Y/n]: ').lower()
+                if overwrite != "y":
+                    return
+
             try:
                 self.write('Installing {}\n' .format(tool), 'task')
                 ret_code = subprocess.check_call('sudo {}/e3.install {}'
-                                                .format(path, ' '.join(args)),
-                                                    shell=True)
+                                                     .format(path, dest),
+                                                     shell=True)
             except subprocess.CalledProcessError as e:
                 self.write(e, 'warning')
 
         elif tool == 'plcfactory':
+            if os.path.exists(dest+'/ics_plc_factory'):
+                overwrite = input('PLCFactory found in the destination directory. '
+                                   +'Overwrite existing PLCFactory? [Y/n]: ').lower()
+                if overwrite != "y":
+                    return
+
             repo_url = 'https://bitbucket.org/europeanspallationsource/ics_plc_factory.git'
 
             try:
@@ -279,6 +293,12 @@ class CLIReactor(object):
                 self.write(e, 'warning')
 
         elif tool == 'css':
+            if os.path.exists(dest+'/cs-studio'):
+                overwrite = input('CSS found in the destination directory. '
+                                   +'Overwrite existing CSS? [Y/n]: ').lower()
+                if overwrite != "y":
+                    return
+
             url = 'https://artifactory.esss.lu.se/artifactory/CS-Studio/development/'
             params = {'q': 'ISOW7841FDWER'}
             headers = {'User-Agent': 'Mozilla/5'}
