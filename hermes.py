@@ -237,8 +237,13 @@ class CLIReactor(object):
         dest = os.path.expanduser(dest)
 
         # Check privileges
-        if not os.access(dest, os.W_OK):
-            self.write('You need sudo privileges to write in {}\n' .format(dest))
+        priv_dest = dest
+        while not os.path.exists(priv_dest):
+            priv_dest = os.path.split(priv_dest)[0]
+        if not os.access(priv_dest, os.W_OK):
+            self.write('You need sudo privileges to write in {}\n'
+                           .format(priv_dest))
+
             q_sudo = input('Would you like to run as sudo? [Y/n]: ').lower()
             if q_sudo == "y":
                 sudo = True
@@ -255,10 +260,11 @@ class CLIReactor(object):
                 return
 
         if tool == 'e3':
+            # Check if already installed
             if os.path.exists(dest+'/e3'):
                 overwrite = input('E3 found in the destination directory. '
                                    +'Overwrite existing E3? [Y/n]: ').lower()
-                if overwrite != "y":
+                if not overwrite == "y":
                     return
 
             try:
@@ -268,35 +274,66 @@ class CLIReactor(object):
                                                      shell=True)
             except subprocess.CalledProcessError as e:
                 self.write(e, 'warning')
+                return
 
         elif tool == 'plcfactory':
+            # Check if already installed
+            existing = False
             if os.path.exists(dest+'/ics_plc_factory'):
                 overwrite = input('PLCFactory found in the destination directory. '
-                                   +'Overwrite existing PLCFactory? [Y/n]: ').lower()
-                if overwrite != "y":
+                                   +'Update PLCFactory? [Y/n]: ').lower()
+                if overwrite == "y":
+                    existing = True
+                else:
                     return
 
             repo_url = 'https://bitbucket.org/europeanspallationsource/ics_plc_factory.git'
 
+            if existing:
+                cmd = 'git -C ' + dest + '/ics_plc_factory pull ' + repo_url
+            else:
+                cmd = 'git clone ' + repo_url + ' ' + dest + '/ics_plc_factory'
+
+            if sudo:
+                cmd = 'sudo ' + cmd
+
             try:
-                if sudo:
-                    ret_code = subprocess.check_call('sudo git clone {} {}{}'
-                                                         .format(repo_url, dest,
-                                                            '/ics_plc_factory'),
-                                                         shell=True)
-                else:
-                    ret_code = subprocess.check_call('git clone {} {}{}'
-                                                         .format(repo_url, dest,
-                                                            '/ics_plc_factory'),
-                                                         shell=True)
+                ret_code = subprocess.check_call(cmd, shell=True)
             except Exception as e:
-                self.write(e, 'warning')
+                ret_code = 1
+
+        elif tool == 'beast':
+            # Check if already installed
+            existing = False
+            if os.path.exists(dest+'/beast-config'):
+                overwrite = input('BEAST found in the destination directory. '
+                                   +'Update BEAST? [Y/n]: ').lower()
+                if overwrite == "y":
+                    existing = True
+                else:
+                    return
+
+            repo_url = 'https://gitlab.esss.lu.se/ics-infrastructure/beast-config.git'
+
+            if existing:
+                cmd = 'git -C ' + dest + '/beast-config pull ' + repo_url
+            else:
+                cmd = 'git clone ' + repo_url + ' ' + dest + '/beast-config'
+
+            if sudo:
+                cmd = 'sudo ' + cmd
+
+            try:
+                ret_code = subprocess.check_call(cmd, shell=True)
+            except Exception as e:
+                ret_code = 1
 
         elif tool == 'css':
+            # Check if already installed
             if os.path.exists(dest+'/cs-studio'):
                 overwrite = input('CSS found in the destination directory. '
                                    +'Overwrite existing CSS? [Y/n]: ').lower()
-                if overwrite != "y":
+                if not overwrite == "y":
                     return
 
             url = 'https://artifactory.esss.lu.se/artifactory/CS-Studio/development/'
@@ -321,23 +358,20 @@ class CLIReactor(object):
                     f.write(data)
                     progress = int(100 * dl / total_length)
                     self.write('\r{}%' .format(progress), 'task')
-                    # self.write("\r[%s%s]" % ('=' * done, ' ' * (50-done)),
-                    #                'task')
                     sys.stdout.flush()
 
             self.write("\nInstalling\n", 'task')
+
+
+            cmd = 'sudo tar xzf ' + path+'/'+file_name + ' -C ' + dest
+            cmd += ' && rm -rf ' + path+'/'+file_name
+
+
             if sudo:
-                ret_code = subprocess.check_call('sudo tar xzf {} -C {} && rm -rf {}'
-                                                 .format(path+'/'+file_name,
-                                                             dest,
-                                                             path+'/'+file_name),
-                                                 shell=True)
-            else:
-                ret_code = subprocess.check_call('tar xzf {} -C {} && rm -rf {}'
-                                                 .format(path+'/'+file_name,
-                                                             dest,
-                                                             path+'/'+file_name),
-                                                 shell=True)
+                cmd = 'sudo ' + cmd
+
+            ret_code = subprocess.check_call(cmd, shell=True)
+
             self.write("Done\n", 'task')
 
             self.write('Tip: If you want to be able to start CSS from '
@@ -388,17 +422,18 @@ class CLIReactor(object):
 
     def help(self):
         """Print help text."""
-        assign_descr = 'Assign an issue to a user.'
-        help_descr = 'List commands (show this message).'
-        comment_descr = 'Comment on a tickets e.g. "comment".'
-        log_descr = 'Log work, e.g. log "3h 20m" "comment".'
-        quit_descr = 'Quit Hermes.'
-        tickets_a_descr = 'List assignee\'s tickets.'
-        tickets_p_descr = 'List project\'s tickets.'
-        username_descr = 'Remember or forget username.'
-        install_e3 = 'Install e3 with epics 7 + common mods.'
-        install_css = 'Install lastest beta version of css.'
-        install_plcf = 'Install plc factory.'
+        assign_descr = 'Assign an issue to a user'
+        help_descr = 'List commands (show this message)'
+        comment_descr = 'Comment on a tickets e.g. "comment"'
+        log_descr = 'Log work, e.g. log "3h 20m" "comment"'
+        quit_descr = 'Quit Hermes'
+        tickets_a_descr = 'List assignee\'s tickets'
+        tickets_p_descr = 'List project\'s tickets'
+        username_descr = 'Remember or forget username'
+        install_e3 = 'Install e3 with epics 7 + common mods'
+        install_css = 'Install lastest beta version of css'
+        install_plcf = 'Install plc factory'
+        install_beast = 'Install BEAST alarm handler'
 
         help_text = {
             # name                                      function
@@ -416,6 +451,7 @@ class CLIReactor(object):
             'install   e3 <install path>'             : install_e3,
             '          css <install path>'            : install_css,
             '          plcfactory <install path>'     : install_plcf,
+            '          beast <install path>'          : install_beast,
             }
 
         title = "Commands:"
@@ -478,12 +514,13 @@ class CLIReactor(object):
 
         commands = {
             # name           function
+            # HERMES ######################
+            "help"          : self.help,
+            "quit"          : self.quit,
             # JIRA ########################
             "assign"        : self.assign,
-            "help"          : self.help,
             "comment"       : self.comment,
             "log"           : self.log,
-            "quit"          : self.quit,
             "tickets"       : self.tickets,
             "username"      : self.username,
             # INSTALL #####################
