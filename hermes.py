@@ -426,6 +426,7 @@ class CLIReactor(object):
         help_descr = 'List commands (show this message)'
         comment_descr = 'Comment on a tickets e.g. "comment"'
         log_descr = 'Log work, e.g. log "3h 20m" "comment"'
+        org_descr = 'read emacs org-mode file and log work.'
         quit_descr = 'Quit Hermes'
         tickets_a_descr = 'List assignee\'s tickets'
         tickets_p_descr = 'List project\'s tickets'
@@ -444,6 +445,7 @@ class CLIReactor(object):
             'assign    <ticket> <assignee>'           : assign_descr,
             'comment   <ticket> "<comment>"'          : comment_descr,
             'log       <ticket> "<time>" "<comment>"' : log_descr,
+            'org       <path>'                        : org_descr,
             'tickets   [<assignee>]'                  : tickets_a_descr,
             '          [<project> project]'           : tickets_p_descr,
             'username  remember | forget'             : username_descr,
@@ -521,10 +523,11 @@ class CLIReactor(object):
             "assign"        : self.assign,
             "comment"       : self.comment,
             "log"           : self.log,
+            "org"           : self.org,
             "tickets"       : self.tickets,
             "username"      : self.username,
             # INSTALL #####################
-            "install"      : self.install,
+            "install"       : self.install,
             }
 
         # Check if we have a valid command
@@ -540,6 +543,38 @@ class CLIReactor(object):
             function(*args)
         except TypeError as type_error:
             self.write("{}\n".format(type_error), "warning")
+
+    def org(self, path):
+        """ parse emacs org-mode file with clock table and send work to Jira.
+
+        :param path: Path to .org file
+        """
+        path = os.path.expanduser(path)
+
+        if not os.path.exists(path):
+            self.write('File \'{}\' does not exist\n' .format(path), 'warning')
+            return
+
+        with open(path) as f:
+            lines = f.readlines()
+
+        match_flag = False
+
+        for i in range(0,len(lines)):
+            match = re.search("^\|[^-][^ Headline][^ \*Total].*ICSHWI", lines[i])
+
+            if match is not None:
+                match_flag = True
+                cols = lines[i].split('|')
+                ticket = re.search("ICSHWI(-\d+)?", cols[1]).group(0)
+                comment = cols[5]
+                time_list = re.search("\d+:\d+", lines[i]).group(0).split(':')
+                time = '{}h {}m' .format(time_list[0], time_list[1])
+                self.write('\n{}\t{}\t{}\n' .format(ticket, time, comment))
+                self.log(ticket, time, comment)
+
+        if not match_flag:
+            self.write('No work to log found in {}\n' .format(path), 'warning')
 
     def parse(self, args, comments=False, posix=True):
         """Parse command from command line.
