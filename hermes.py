@@ -426,7 +426,7 @@ class CLIReactor(object):
         help_descr = 'List commands (show this message)'
         comment_descr = 'Comment on a tickets e.g. "comment"'
         log_descr = 'Log work, e.g. log "3h 20m" "comment"'
-        org_descr = 'read emacs org-mode file and log work.'
+        org_descr = 'Parse emacs org-mode file and log work.'
         quit_descr = 'Quit Hermes'
         tickets_a_descr = 'List assignee\'s tickets'
         tickets_p_descr = 'List project\'s tickets'
@@ -560,20 +560,30 @@ class CLIReactor(object):
 
         match_flag = False
 
+        tickets = []
+        times = []
+        comments = []
         for i in range(0,len(lines)):
             match = re.search("^\|[^-][^ Headline][^ \*Total].*ICSHWI", lines[i])
-
             if match is not None:
                 match_flag = True
                 cols = lines[i].split('|')
-                ticket = re.search("ICSHWI(-\d+)?", cols[1]).group(0)
-                comment = cols[5]
+                tickets.append(re.search("ICSHWI(-\d+)?", cols[1]).group(0))
+                comments.append(cols[5])
                 time_list = re.search("\d+:\d+", lines[i]).group(0).split(':')
-                time = '{}h {}m' .format(time_list[0], time_list[1])
-                self.write('\n{}\t{}\t{}\n' .format(ticket, time, comment))
-                self.log(ticket, time, comment)
+                times.append('{}h {}m' .format(time_list[0], time_list[1]))
+                self.write('{}\t{}\t{}\n' .format(tickets[-1], times[-1], comments[-1]))
 
-        if not match_flag:
+        if match_flag:
+            log = input('Would you like to log this? [Y/n]: ').lower()
+            if log == "y":
+                self.jiraLogin()
+                for i in range(len(tickets)):
+                    self.write('\n{}\t{}\t{}\n' .format(tickets[i], times[i], comments[i]))
+                    self.log(tickets[i], times[i], comments[i])
+            else:
+                return
+        else:
             self.write('No work to log found in {}\n' .format(path), 'warning')
 
     def parse(self, args, comments=False, posix=True):
