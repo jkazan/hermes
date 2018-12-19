@@ -32,8 +32,4 @@ $ python3 <path to hermes>/hermes.py
 
 ### Caveat
 
-This cli was developed to improve my workflow. I am lacking knowledge
-regarding Jira's json structure, resulting in imperfections when
-printing list of tickets, have been desiged based on my personal
-tickets. Furthermore, only a small selection of features habe been
-implemented, based on my own need. Please feel free to contribute!
+This cli was developed to improve my workflow. Not all features for Jira has been implemented. The tool is provided as is.
