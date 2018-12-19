@@ -27,7 +27,7 @@ $ sudo pip3 install requests
 
 ### Run
 ```sh
-$ python3 <path to hermes>/cli.py
+$ python3 <path to hermes>/hermes.py
 ```
 
 ### Caveat
