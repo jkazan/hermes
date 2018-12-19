@@ -92,7 +92,8 @@ class CLIReactor(object):
         comments = []
         for i in range(len(raw_com)):
             names.append(raw_com[i]['author']['displayName'])
-            comments.append(raw_com[i]['body'].replace('\n', '').replace('\r', ''))
+            comment = raw_com[i]['body']
+            comments.append(comment.replace('\n', '').replace('\r', ''))
 
         rows, cols = os.popen('stty size', 'r').read().split()
         max_len = len(max(names, key=len)) + 1
