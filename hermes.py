@@ -11,6 +11,7 @@ import getpass
 import inspect
 import subprocess
 import re
+from distutils.version import LooseVersion
 
 class CLIReactor(object):
     """Hermes Command Line Interface."""
@@ -70,6 +71,51 @@ class CLIReactor(object):
         response = requests.post(
             url, auth=self.auth, headers=self.headers, data=payload)
         self.response_ok(response, ticket)
+
+    def comments(self, ticket):
+        """Get comments on a Jira ticket.
+
+        param ticket: Jira ticket key.
+        """
+        self.jiraLogin()
+
+        url = 'https://jira.esss.lu.se/rest/api/latest/issue/'+ticket+'/comment'
+        response = requests.get(url, auth=self.auth, headers=self.headers)
+
+        if not self.response_ok(response, ticket):
+            return
+
+        data = response.json()
+        raw_com = data['comments']
+
+        names = []
+        comments = []
+        for i in range(len(raw_com)):
+            names.append(raw_com[i]['author']['displayName'])
+            comments.append(raw_com[i]['body'].replace('\n', '').replace('\r', ''))
+
+        rows, cols = os.popen('stty size', 'r').read().split()
+        max_len = len(max(names, key=len)) + 1
+        for i in range(len(names)):
+            if i % 2 == 0:
+                color = 'task'
+            else:
+                color = 'epic'
+            spacing = " "*(max_len - len(names[i]))
+            self.write('{}:{}' .format(names[i], spacing), color)
+
+            line_len = max_len + 1
+            col_nbr = 0
+            for k in range(len(comments[i])):
+                col_nbr += 1
+                if line_len + col_nbr == int(cols):
+                    col_nbr = 0
+                    self.write('\n{}' .format(" "*(max_len+1)))
+                    if comments[i][k] == ' ':
+                        continue
+
+                self.write('{}' .format(comments[i][k]), color)
+            print('')
 
     def log(self, ticket, time, comment):
         """Log work.
@@ -226,7 +272,7 @@ class CLIReactor(object):
         self.event_loop_active = False
         os.kill(os.getpid(), signal.SIGINT)
 
-    def install(self, tool, dest):
+    def install(self, tool, dest, opt=None):
         """Install software tool.
 
         param tool: Name of tool to install
@@ -329,20 +375,45 @@ class CLIReactor(object):
                 ret_code = 1
 
         elif tool == 'css':
+            if opt is None:
+                opt = 'development'
+            elif opt != "development" and opt != "production":
+                self.write('\'{}\' is an invalid option\n' .format(opt), 'warning' )
+                return
+
             # Check if already installed
             if os.path.exists(dest+'/cs-studio'):
                 overwrite = input('CSS found in the destination directory. '
                                    +'Overwrite existing CSS? [Y/n]: ').lower()
-                if not overwrite == "y":
-                    return
 
-            url = 'https://artifactory.esss.lu.se/artifactory/CS-Studio/development/'
+            url = 'https://artifactory.esss.lu.se/artifactory/CS-Studio/'
+            url += opt+'/'
+            if opt == 'development':
+                pattern = re.compile("[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+b[0-9]+")
+            elif opt == 'production':
+                pattern = re.compile("[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+")
+
             params = {'q': 'ISOW7841FDWER'}
             headers = {'User-Agent': 'Mozilla/5'}
             r = requests.get(url, params=params, headers=headers)
-            pattern = re.compile("[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+b[0-9]+")
-            version = pattern.findall(r.text)[-1]
-            self.write('Downloading\n', 'task')
+
+            # Cast to set and back to list to make it unique
+            versions = set(pattern.findall(r.text))
+            versions = list(versions)
+
+
+            versions.sort(key=LooseVersion)
+            self.write('{} versions:\n' .format(opt), 'header')
+            for v in versions:
+                print(v)
+            version = input('Which version would you like to install? ')
+            while version not in pattern.findall(r.text):
+                self.write('\'{}\' is not a valid version\n'
+                               .format(version), 'warning')
+                version = input('Which version would you like to install? ')
+
+            self.write('Downloading {} version {}\n'
+                           .format(opt, version), 'task')
 
             if sys.platform == 'linux':
                 file_name = 'cs-studio-ess-'+version+'-linux.gtk.x86_64.tar.gz'
@@ -376,11 +447,9 @@ class CLIReactor(object):
 
             self.write('Tip: If you want to be able to start CSS from '
                            +'anywhere in your terminal by just\ntyping "css"'
-                           +', put the following line in your ~/.bashrc file\n',
-                           'tip')
-
-            self.write('alias css=\'{}/cs-studio/ESS\ CS-Studio\'\n'
-                           .format(dest), 'task')
+                           +', put the following line in your ~/.bashrc file:\n'
+                           +'alias css=\'{}/cs-studio/ESS\ CS-Studio\'\n'
+                           .format(dest), 'tip')
 
         else:
             self.write('\'{}\' is not available for installation\n'
@@ -425,14 +494,15 @@ class CLIReactor(object):
         assign_descr = 'Assign an issue to a user'
         help_descr = 'List commands (show this message)'
         comment_descr = 'Comment on a tickets e.g. "comment"'
+        comments_descr = 'Get all comments on a ticket'
         log_descr = 'Log work, e.g. log "3h 20m" "comment"'
-        org_descr = 'Parse emacs org-mode file and log work.'
+        org_descr = 'Parse emacs org-mode file and log work'
         quit_descr = 'Quit Hermes'
         tickets_a_descr = 'List assignee\'s tickets'
         tickets_p_descr = 'List project\'s tickets'
         username_descr = 'Remember or forget username'
         install_e3 = 'Install e3 with epics 7 + common mods'
-        install_css = 'Install lastest beta version of css'
+        install_css = 'Install css production|development'
         install_plcf = 'Install plc factory'
         install_beast = 'Install BEAST alarm handler'
 
@@ -444,6 +514,7 @@ class CLIReactor(object):
             'Jira'                                    : None,
             'assign    <ticket> <assignee>'           : assign_descr,
             'comment   <ticket> "<comment>"'          : comment_descr,
+            'comments  <ticket>'                      : comments_descr,
             'log       <ticket> "<time>" "<comment>"' : log_descr,
             'org       <path>'                        : org_descr,
             'tickets   [<assignee>]'                  : tickets_a_descr,
@@ -451,7 +522,7 @@ class CLIReactor(object):
             'username  remember | forget'             : username_descr,
             'Installation'                            : None,
             'install   e3 <install path>'             : install_e3,
-            '          css <install path>'            : install_css,
+            '          css <install path> [<branch>]' : install_css,
             '          plcfactory <install path>'     : install_plcf,
             '          beast <install path>'          : install_beast,
             }
@@ -522,6 +593,7 @@ class CLIReactor(object):
             # JIRA ########################
             "assign"        : self.assign,
             "comment"       : self.comment,
+            "comments"      : self.comments,
             "log"           : self.log,
             "org"           : self.org,
             "tickets"       : self.tickets,
@@ -616,6 +688,20 @@ class CLIReactor(object):
 
         password = getpass.getpass("Password: ")
         self.auth = (self.user, password)
+
+        #TODO: verify self.auth
+        # login_ok = False
+        # while not login_ok:
+        #     password = getpass.getpass("Password: ")
+        #     self.auth = (self.user, password)
+        #     try:
+        #         url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee=' + self.user
+        #         response = requests.get(url, auth=self.auth, headers=self.headers)
+        #         # response_ok = self.response_ok(response)
+        #         login_ok = True
+        #     except Exception:
+        #         self.write('try again\n', 'warning')
+
 
 
 if __name__ == '__main__':
