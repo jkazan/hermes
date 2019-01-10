@@ -49,3 +49,24 @@ class Color(object):
                    + self.perform_escape('\x1b[0m')
         else:
             return string
+
+import sys
+class Write(object):
+    colors = {
+        'regular' : Color(),
+        'prompt'  : Color().bright_blue,
+        'header'  : Color().bold.white,
+        'warning' : Color().red,
+        'task'    : Color().cyan,
+        'epic'    : Color().magenta,
+        'ok'      : Color().green,
+        'tip'     : Color().yellow,
+    }
+
+    def write(self, string, color="regular"):
+        """Print method with custom colors.
+
+        :param string: String to print
+        :param color: Font color, default is 'regular'
+        """
+        sys.stdout.write(self.colors[color](string))
