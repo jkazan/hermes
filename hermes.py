@@ -43,6 +43,7 @@ class CLIReactor(object):
         help_descr = 'List commands (show this message)'
         comment_descr = 'Comment on a tickets e.g. "comment"'
         comments_descr = 'Get all comments on a ticket'
+        graph_descr = 'Draw ticket relationship graph'
         log_descr = 'Log work, e.g. log "3h 20m" "comment"'
         org_descr = 'Parse emacs org-mode file and log work'
         quit_descr = 'Quit Hermes'
@@ -63,6 +64,7 @@ class CLIReactor(object):
             'assign    <ticket> <assignee>'           : assign_descr,
             'comment   <ticket> "<comment>"'          : comment_descr,
             'comments  <ticket>'                      : comments_descr,
+            'graph     <ticket>'                      : graph_descr,
             'log       <ticket> "<time>" "<comment>"' : log_descr,
             'org       <path>'                        : org_descr,
             'tickets   [<assignee>]'                  : tickets_a_descr,
@@ -92,7 +94,6 @@ class CLIReactor(object):
                 Write().write("%s %s %s\n"
                            %(cmd, spacing, help_text[cmd]))
 
-
     def dataReceived(self, data):
         """Handles request from the command line.
 
@@ -116,6 +117,7 @@ class CLIReactor(object):
             "assign"        : self.hjira.assign,
             "comment"       : self.hjira.comment,
             "comments"      : self.hjira.comments,
+            "graph"         : self.hjira.graph,
             "log"           : self.hjira.log,
             "org"           : self.hjira.org,
             "tickets"       : self.hjira.tickets,
@@ -137,7 +139,6 @@ class CLIReactor(object):
             function(*args)
         except TypeError as type_error:
             Write().write("{}\n".format(type_error), "warning")
-
 
     def parse(self, args, comments=False, posix=True):
         """Parse command from command line.

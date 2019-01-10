@@ -1,5 +1,7 @@
 from __future__ import print_function
 import os
+import sys
+import subprocess
 import readline
 import json
 from terminal import Write
@@ -7,6 +9,9 @@ import requests
 import getpass
 import inspect
 import re
+
+from graph import JiraSearch
+import textwrap
 
 class HJira(object):
 
@@ -76,7 +81,6 @@ class HJira(object):
                 Write().write('{} was not known\n' .format(self.user), 'warning')
         else:
             Write().write('Invalid action \'{}\'\n' .format(action), 'warning')
-
 
     def comment(self, ticket, comment):
         """Comment on a Jira ticket.
@@ -288,7 +292,6 @@ class HJira(object):
                                                             child[2],
                                                             child[3]), 'task')
 
-
     def assign(self, ticket, user):
         """Assign an issue to a user.
 
@@ -315,7 +318,6 @@ class HJira(object):
             if response_code == 204:
                 Write().write('{} assigned to {}\n'
                                .format(ticket, user), 'ok')
-
 
     def org(self, path):
         """ parse emacs org-mode file with clock table and send work to Jira.
@@ -358,3 +360,66 @@ class HJira(object):
                 return
         else:
             Write().write('No work to log found in {}\n' .format(path), 'warning')
+
+    def graph(self, ticket):
+        self.jiraLogin()
+        options = {
+            'cookie' : None,
+            'jira_url' : 'https://jira.esss.lu.se',
+            'image_file' : ticket + '_graph.png',
+            'store_true' : False,
+            'store_true' : False,
+            'excludes' : [],
+            'closed' : False,
+            'includes' : '',
+            'show_directions' : ['inward', 'outward'],
+            'directions' : ['inward', 'outward'],
+            'node_shape' : 'circle',
+            'store_true' : False,
+            'traverse' : True,
+            'word_wrap' : False,
+            'no_verify_ssl' : False,
+            'ignore_epic' : False,
+            'ignore_subtasks' : False,
+            'local' : False,
+            }
+
+        jira = JiraSearch(options['jira_url'],
+                              self.auth,
+                              options['no_verify_ssl'])
+
+        try:
+            graph = jira.build_graph_data(ticket,
+                                          jira,
+                                          options['excludes'],
+                                          options['show_directions'],
+                                          options['directions'],
+                                          options['includes'],
+                                          options['closed'],
+                                          options['ignore_epic'],
+                                          options['ignore_subtasks'],
+                                          options['traverse'],
+                                          options['word_wrap'])
+        except requests.exceptions.HTTPError as e:
+            Write().write('{}\n\nAre you sure that \'{}\' exists?\n'
+                              .format(e, ticket), 'warning')
+            return
+
+        if options['local']:
+            jira.print_graph(jira.filter_duplicates(graph),
+                                 options['node_shape'])
+        else:
+            # jira.create_graph_image(jira.filter_duplicates(graph),
+            #                        options['image_file'],
+            #                        options['node_shape'])
+            jira.create_graph_image(graph,
+                                        options['image_file'],
+                                        options['node_shape'])
+
+        Write().write('Saved image to {}\n'
+                          .format(options['image_file']), 'ok')
+
+        imageViewerFromCommandLine = {'linux':'xdg-open',
+                                  'win32':'explorer',
+                                  'darwin':'open'}[sys.platform]
+        subprocess.run([imageViewerFromCommandLine, options['image_file']])
