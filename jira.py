@@ -4,7 +4,7 @@ import sys
 import subprocess
 import readline
 import json
-from terminal import Write
+from terminal import Write as W
 import requests
 import getpass
 import inspect
@@ -18,7 +18,7 @@ class HJira(object):
     def __init__(self):
         self.user = None
         self.auth = (self.user, None)
-        self.headers = {'Content-Type': 'application/json',}
+        self.headers = {'Content-Type':'application/json'}
 
     def jiraLogin(self):
         """" Login to Jira account. """
@@ -36,21 +36,24 @@ class HJira(object):
         else:
             self.user = input("Jira username: ")
 
-        password = getpass.getpass("Password: ")
-        self.auth = (self.user, password)
+        # password = getpass.getpass("Password: ")
+        # self.auth = (self.user, password)
 
         #TODO: verify self.auth
-        # login_ok = False
-        # while not login_ok:
-        #     password = getpass.getpass("Password: ")
-        #     self.auth = (self.user, password)
-        #     try:
-        #         url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee=' + self.user
-        #         response = requests.get(url, auth=self.auth, headers=self.headers)
-        #         # response_ok = self.response_ok(response)
-        #         login_ok = True
-        #     except Exception:
-        #         Write().write('try again\n', 'warning')
+        login_try = 0
+        while login_try < 3:
+            password = getpass.getpass("Password: ")
+            self.auth = (self.user, password)
+            url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee=' + self.user
+            response = requests.get(url, auth=self.auth, headers=self.headers)
+            loggedin = self.response_ok(response)
+            if loggedin:
+                return loggedin
+            else:
+                W().write('try again\n', 'warning')
+                login_try += 1
+
+        return loggedin
 
 
     def username(self, action):
@@ -67,20 +70,21 @@ class HJira(object):
 
         if action == 'remember':
             if os.path.isfile(path+'/'+user_file):
-                Write().write('{} is already remembered\n'
+                W().write('{} is already remembered\n'
                                .format(self.user), 'warning')
             else:
                 with open(path+'/'+user_file, 'a') as f:
                     f.write('{"user":"'+user+'"}')
-                    Write().write('{} will be remembered\n' .format(self.user), 'ok')
+                    W().write('{} will be remembered\n'
+                                  .format(self.user), 'ok')
         elif action == 'forget':
             if os.path.isfile(path+'/'+user_file):
                 os.remove(path+'/'+user_file)
-                Write().write('{} has been forgotten\n' .format(self.user), 'ok')
+                W().write('{} has been forgotten\n' .format(self.user), 'ok')
             else:
-                Write().write('{} was not known\n' .format(self.user), 'warning')
+                W().write('{} was not known\n' .format(self.user), 'warning')
         else:
-            Write().write('Invalid action \'{}\'\n' .format(action), 'warning')
+            W().write('Invalid action \'{}\'\n' .format(action), 'warning')
 
     def comment(self, ticket, comment):
         """Comment on a Jira ticket.
@@ -127,7 +131,7 @@ class HJira(object):
             else:
                 color = 'epic'
             spacing = " "*(max_len - len(names[i]))
-            Write().write('{}:{}' .format(names[i], spacing), color)
+            W().write('{}:{}' .format(names[i], spacing), color)
 
             line_len = max_len + 1
             col_nbr = 0
@@ -135,11 +139,11 @@ class HJira(object):
                 col_nbr += 1
                 if line_len + col_nbr == int(cols):
                     col_nbr = 0
-                    Write().write('\n{}' .format(" "*(max_len+1)))
+                    W().write('\n{}' .format(" "*(max_len+1)))
                     if comments[i][k] == ' ':
                         continue
 
-                Write().write('{}' .format(comments[i][k]), color)
+                W().write('{}' .format(comments[i][k]), color)
             print('')
 
     def log(self, ticket, time, comment):
@@ -165,31 +169,40 @@ class HJira(object):
 
         :returns: True if request was successful, False otherwise
         """
-        data = response.json()
-        curframe = inspect.currentframe()
-        calframe = inspect.getouterframes(curframe, 2)
-        caller = calframe[1][3]
+        # data = response.json()
+        # curframe = inspect.currentframe()
+        # calframe = inspect.getouterframes(curframe, 2)
+        # caller = calframe[1][3]
 
         if response.status_code == 200:
             return True # Successful 'get'
         elif response.status_code == 201:
-            Write().write('Successfully posted\n', 'ok')
+            W().write('Successfully posted\n', 'ok')
             return True
         elif response.status_code == 400:
+            data = response.json()
+            curframe = inspect.currentframe()
+            calframe = inspect.getouterframes(curframe, 2)
+            caller = calframe[1][3]
             if data['errorMessages']:
                 errorMessages = data['errorMessages'][0]
-                Write().write('{}\n' .format(errorMessages), 'warning')
+                W().write('{}\n' .format(errorMessages), 'warning')
 
             if caller == 'assign':
                 errors = data['errors']['assignee']
-                Write().write('{}\n' .format(errors), 'warning')
+                W().write('{}\n' .format(errors), 'warning')
             elif caller == 'log':
                 errors = data['errors']['timeLogged']
-                Write().write('{}\n' .format(errors), 'warning')
-
+                W().write('{}\n' .format(errors), 'warning')
+        elif response.status_code == 403:
+            W().write('{} Forbidden\n' .format(response.status_code), 'warning')
         elif response.status_code == 404:
+            data = response.json()
+            curframe = inspect.currentframe()
+            calframe = inspect.getouterframes(curframe, 2)
+            caller = calframe[1][3]
             errorMessages = data['errorMessages'][0]
-            Write().write('{}\n' .format(errorMessages), 'warning')
+            W().write('{}\n' .format(errorMessages), 'warning')
 
         return False
 
@@ -207,7 +220,6 @@ class HJira(object):
         url = 'https://jira.esss.lu.se/rest/api/2/search?jql='+target+'=' + key
         response = requests.get(url, auth=self.auth, headers=self.headers)
         response_ok = self.response_ok(response)
-
         if response_ok is False:
             return
 
@@ -215,7 +227,7 @@ class HJira(object):
         issues = data['issues']
 
         if not issues:
-            Write().write('No tickets found for \'{}\' \n' .format(key),'warning')
+            W().write('No tickets found for \'{}\' \n' .format(key),'warning')
             return
 
         n = len(issues)
@@ -275,19 +287,19 @@ class HJira(object):
                         [tickets[i], issue_types[i], progress[i], summaries[i]])
 
         # Print headers
-        Write().write('{:<18s}{:<15s}{:<10s}{}\n' .format('Ticket',
+        W().write('{:<18s}{:<15s}{:<10s}{}\n' .format('Ticket',
                                                   'Type',
                                                   'Progress',
                                                   'Summary'), 'header')
         # Print tree
         for parent, children in tree:
-            Write().write('{:<18s}{:<15s}{:<10s}{}\n' .format(parent[0],
+            W().write('{:<18s}{:<15s}{:<10s}{}\n' .format(parent[0],
                                                         parent[1],
                                                         parent[2],
                                                         parent[3]), 'epic')
 
             for child in children:
-                Write().write('   {:<15s}{:<15s}{:<10s}{}\n' .format(child[0],
+                W().write('   {:<15s}{:<15s}{:<10s}{}\n' .format(child[0],
                                                             child[1],
                                                             child[2],
                                                             child[3]), 'task')
@@ -316,7 +328,7 @@ class HJira(object):
             response_code = int(s[1])
 
             if response_code == 204:
-                Write().write('{} assigned to {}\n'
+                W().write('{} assigned to {}\n'
                                .format(ticket, user), 'ok')
 
     def org(self, path):
@@ -327,7 +339,7 @@ class HJira(object):
         path = os.path.expanduser(path)
 
         if not os.path.exists(path):
-            Write().write('File \'{}\' does not exist\n' .format(path), 'warning')
+            W().write('File \'{}\' does not exist\n' .format(path), 'warning')
             return
 
         with open(path) as f:
@@ -347,26 +359,29 @@ class HJira(object):
                 comments.append(cols[5])
                 time_list = re.search("\d+:\d+", lines[i]).group(0).split(':')
                 times.append('{}h {}m' .format(time_list[0], time_list[1]))
-                Write().write('{}\t{}\t{}\n' .format(tickets[-1], times[-1], comments[-1]))
+                W().write('{}\t{}\t{}\n'
+                              .format(tickets[-1], times[-1], comments[-1]))
 
         if match_flag:
             log = input('Would you like to log this? [Y/n]: ').lower()
             if log == "y":
                 self.jiraLogin()
                 for i in range(len(tickets)):
-                    Write().write('\n{}\t{}\t{}\n' .format(tickets[i], times[i], comments[i]))
+                    W().write('\n{}\t{}\t{}\n'
+                                  .format(tickets[i], times[i], comments[i]))
                     self.log(tickets[i], times[i], comments[i])
             else:
                 return
         else:
-            Write().write('No work to log found in {}\n' .format(path), 'warning')
+            W().write('No work to log found in {}\n' .format(path), 'warning')
 
-    def graph(self, ticket):
+    def graph(self, ticket, shape='box'):
         self.jiraLogin()
+        path = os.path.dirname(os.path.abspath(__file__)) # Path to hermes dir
         options = {
             'cookie' : None,
             'jira_url' : 'https://jira.esss.lu.se',
-            'image_file' : ticket + '_graph.png',
+            'image_file' : path + '/' + ticket + '_graph.png',
             'store_true' : False,
             'store_true' : False,
             'excludes' : [],
@@ -374,7 +389,7 @@ class HJira(object):
             'includes' : '',
             'show_directions' : ['inward', 'outward'],
             'directions' : ['inward', 'outward'],
-            'node_shape' : 'circle',
+            'node_shape' : shape,
             'store_true' : False,
             'traverse' : True,
             'word_wrap' : False,
@@ -400,14 +415,15 @@ class HJira(object):
                                           options['ignore_subtasks'],
                                           options['traverse'],
                                           options['word_wrap'])
-        except requests.exceptions.HTTPError as e:
-            Write().write('{}\n\nAre you sure that \'{}\' exists?\n'
-                              .format(e, ticket), 'warning')
+        except requests.exceptions.HTTPError: #TODO: same whatever issue fix this
+            W().write('Cannot find \'{}\'\n'
+                              .format(ticket), 'warning')
             return
 
         if options['local']:
-            jira.print_graph(jira.filter_duplicates(graph),
-                                 options['node_shape'])
+            # jira.print_graph(jira.filter_duplicates(graph),
+            #                      options['node_shape'])
+            jira.print_graph(graph, options['node_shape'])
         else:
             # jira.create_graph_image(jira.filter_duplicates(graph),
             #                        options['image_file'],
@@ -416,7 +432,7 @@ class HJira(object):
                                         options['image_file'],
                                         options['node_shape'])
 
-        Write().write('Saved image to {}\n'
+        W().write('Saved image to {}\n'
                           .format(options['image_file']), 'ok')
 
         imageViewerFromCommandLine = {'linux':'xdg-open',
