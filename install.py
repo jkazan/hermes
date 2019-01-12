@@ -15,7 +15,7 @@ class HInstall(object):
         param args: Input arguments needed for installation
         """
         sudo = False
-        path = os.path.dirname(os.path.abspath(__file__)) # Path to cli dir
+        path = os.path.dirname(os.path.abspath(__file__)) # Path to hermes dir
         dest = os.path.expanduser(dest)
 
         # Check privileges
