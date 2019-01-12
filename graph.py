@@ -25,8 +25,11 @@ def log(*args):
 
 
 class JiraSearch(object):
-    """ This factory will create the actual method used to fetch issues from JIRA. This is really just a closure that
-        saves us having to pass a bunch of parameters all over the place all the time. """
+    """This factory will create the actual method used to fetch issues
+
+    from JIRA. This is really just a closure that saves us having to
+    pass a bunch of parameters all over the place all the time.
+"""
 
     __base_url = None
 
@@ -35,16 +38,30 @@ class JiraSearch(object):
         self.url = url + '/rest/api/latest'
         self.auth = auth
         self.no_verify_ssl = no_verify_ssl
-        self.fields = ','.join(['key', 'summary', 'status', 'description', 'issuetype', 'issuelinks', 'subtasks'])
+        self.fields = ','.join(['key',
+                                    'summary',
+                                    'status',
+                                    'description',
+                                    'issuetype',
+                                    'issuelinks',
+                                    'subtasks'])
 
     def get(self, uri, params={}):
         headers = {'Content-Type' : 'application/json'}
         url = self.url + uri
 
         if isinstance(self.auth, str):
-            return requests.get(url, params=params, cookies={'JSESSIONID': self.auth}, headers=headers, verify=self.no_verify_ssl)
+            return requests.get(url,
+                                    params=params,
+                                    cookies={'JSESSIONID': self.auth},
+                                    headers=headers,
+                                    verify=self.no_verify_ssl)
         else:
-            return requests.get(url, params=params, auth=self.auth, headers=headers, verify=(not self.no_verify_ssl))
+            return requests.get(url,
+                                    params=params,
+                                    auth=self.auth,
+                                    headers=headers,
+                                    verify=(not self.no_verify_ssl))
 
     def response_ok(self, response, ticket=None):
         data = response.json()
@@ -76,12 +93,15 @@ class JiraSearch(object):
         return False
 
     def get_issue(self, key):
-        """ Given an issue key (i.e. JRA-9) return the JSON representation of it. This is the only place where we deal
-            with JIRA's REST API. """
-        log('Fetching ' + key)
+        """Given an issue key (i.e. JRA-9) return the JSON
+
+        representation of it. This is the only place where we deal with
+        JIRA's REST API.
+        """
         # we need to expand subtasks and links since that's what we care about here.
         response = self.get('/issue/%s' % key, params={'fields': self.fields})
         response.raise_for_status()
+        log('Fetched ' + key)
         return response.json()
 
     def query(self, query):
@@ -93,10 +113,23 @@ class JiraSearch(object):
     def get_issue_uri(self, issue_key):
         return self.__base_url + '/browse/' + issue_key
 
-    def build_graph_data(self,start_issue_key, jira, excludes, show_directions, directions, includes, ignore_closed, ignore_epic, ignore_subtasks, traverse, word_wrap):
-        """ Given a starting image key and the issue-fetching function build up the GraphViz data representing relationships
-        between issues. This will consider both subtasks and issue links.
-        """
+    def build_graph_data(self,
+                             start_issue_key,
+                             jira,
+                             excludes,
+                             show_directions,
+                             directions,
+                             includes,
+                             ignore_closed,
+                             ignore_epic,
+                             ignore_subtasks,
+                             traverse,
+                             word_wrap):
+        """Given a starting image key and the issue-fetching function
+
+        build up the GraphViz data representing relationships between
+        issues. This will consider both subtasks and issue links.
+"""
         def get_key(issue):
             return issue['key']
 
@@ -114,19 +147,23 @@ class JiraSearch(object):
 
             if word_wrap == True:
                 if len(summary) > MAX_SUMMARY_LENGTH:
-                    # split the summary into multiple lines adding a \n to each line
+                    # split the summary into multiple lines adding a \n to each
+                    # line
                     summary = textwrap.fill(fields['summary'], MAX_SUMMARY_LENGTH)
             else:
-                # truncate long labels with "...", but only if the three dots are replacing more than two characters
-                # -- otherwise the truncated label would be taking more space than the original.
+                # truncate long labels with "...", but only if the three dots
+                # are replacing more than two characters -- otherwise the
+                # truncated label would be taking more space than the original.
                 if len(summary) > MAX_SUMMARY_LENGTH + 2:
                     summary = fields['summary'][:MAX_SUMMARY_LENGTH] + '...'
             summary = summary.replace('"', '\\"')
             # log('node ' + issue_key + ' status = ' + str(status))
 
-            if islink:
-                return '"{}\\n({})"'.format(issue_key, summary.encode('utf-8'))
-            return '"{}\\n({})" [href="{}", fillcolor="{}", style=filled]'.format(issue_key, summary.encode('utf-8'), jira.get_issue_uri(issue_key), get_status_color(status))
+            if islink: #TODO: Remove 'b' and parantheses
+#TODO: Johannes                # return '"{}\\n({})"'.format(issue_key, summary.encode('utf-8'))
+                return '"{}\\n{}"'.format(issue_key, summary)
+#TODO: Johannes            # return '"{}\\n({})" [href="{}", fillcolor="{}", style=filled]' .format(issue_key, summary.encode('utf-8'), jira.get_issue_uri(issue_key), get_status_color(status))
+            return '"{}\\n{}" [href="{}", fillcolor="{}", style=filled]' .format(issue_key, summary, jira.get_issue_uri(issue_key), get_status_color(status))
 
         def process_link(fields, issue_key, link):
             if 'outwardIssue'  in link:
