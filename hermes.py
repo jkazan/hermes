@@ -41,15 +41,15 @@ class CLIReactor(object):
         """Print help text."""
         assign_descr = 'Assign an issue to a user'
         help_descr = 'List commands (show this message)'
-        comment_descr = 'Comment on a tickets e.g. "comment"'
+        comment_descr = 'Comment on a ticket'
         comments_descr = 'Get all comments on a ticket'
-        graph_descr = 'Draw ticket relationship graph'
-        log_descr = 'Log work, e.g. log "3h 20m" "comment"'
+        graph_descr = 'Draw relationship graph'
+        log_descr = 'Log work to a ticket'
         org_descr = 'Parse emacs org-mode file and log work'
         quit_descr = 'Quit Hermes'
         tickets_a_descr = 'List assignee\'s tickets'
         tickets_p_descr = 'List project\'s tickets'
-        username_descr = 'Remember or forget username'
+        username_descr = 'Remember|forget username'
         install_e3 = 'Install e3 with epics 7 + common mods'
         install_css = 'Install css production|development'
         install_plcf = 'Install plc factory'
@@ -64,9 +64,9 @@ class CLIReactor(object):
             'assign    <ticket> <assignee>'           : assign_descr,
             'comment   <ticket> "<comment>"'          : comment_descr,
             'comments  <ticket>'                      : comments_descr,
-            'graph     <ticket>'                      : graph_descr,
+            'graph     <ticket> [box|circle|ellipse]' : graph_descr,
             'log       <ticket> "<time>" "<comment>"' : log_descr,
-            'org       <path>'                        : org_descr,
+            'org       <path to .org file>'           : org_descr,
             'tickets   [<assignee>]'                  : tickets_a_descr,
             '          [<project> project]'           : tickets_p_descr,
             'username  remember | forget'             : username_descr,
