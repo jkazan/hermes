@@ -21,7 +21,8 @@ MAX_SUMMARY_LENGTH = 30
 
 
 def log(*args):
-    print(*args, file=sys.stderr)
+    # print(*args, file=sys.stderr)
+    pass
 
 
 class JiraSearch(object):
