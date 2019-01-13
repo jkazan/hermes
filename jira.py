@@ -13,12 +13,19 @@ import re
 from graph import JiraSearch
 import textwrap
 
+import threading
+import time
+
+import threading
+
 class HJira(object):
 
     def __init__(self):
         self.user = None
         self.auth = (self.user, None)
         self.headers = {'Content-Type':'application/json'}
+        self.stop = False
+        self.loggedin = False
 
     def jiraLogin(self):
         """" Login to Jira account. """
@@ -26,7 +33,7 @@ class HJira(object):
         script_file = os.path.basename(__file__)
         path = os.path.dirname(os.path.abspath(__file__))
 
-        if self.user is not None:
+        if self.loggedin:
             return
 
         if os.path.isfile(path+'/'+user_file):
@@ -36,24 +43,20 @@ class HJira(object):
         else:
             self.user = input("Jira username: ")
 
-        # password = getpass.getpass("Password: ")
-        # self.auth = (self.user, password)
-
-        #TODO: verify self.auth
         login_try = 0
-        while login_try < 3:
+        while login_try < 2:
             password = getpass.getpass("Password: ")
             self.auth = (self.user, password)
             url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee=' + self.user
             response = requests.get(url, auth=self.auth, headers=self.headers)
-            loggedin = self.response_ok(response)
-            if loggedin:
-                return loggedin
+            self.loggedin = self.response_ok(response)
+            if self.loggedin:
+                return
             else:
                 W().write('try again\n', 'warning')
                 login_try += 1
 
-        return loggedin
+        return
 
 
     def username(self, action):
@@ -93,6 +96,8 @@ class HJira(object):
         param comment: Comment to post to ticket.
         """
         self.jiraLogin()
+        if not self.loggedin:
+            return
 
         url = 'https://jira.esss.lu.se/rest/api/latest/issue/'+ticket+'/comment'
         payload = '{"body":"'+comment+'"}'
@@ -106,6 +111,8 @@ class HJira(object):
         param ticket: Jira ticket key.
         """
         self.jiraLogin()
+        if not self.loggedin:
+            return
 
         url = 'https://jira.esss.lu.se/rest/api/latest/issue/'+ticket+'/comment'
         response = requests.get(url, auth=self.auth, headers=self.headers)
@@ -154,6 +161,8 @@ class HJira(object):
         param comment: Comment to post to ticket's work log.
         """
         self.jiraLogin()
+        if not self.loggedin:
+            return
 
         url = 'https://jira.esss.lu.se/rest/api/2/issue/'+ticket+'/worklog'
         payload = '{"timeSpent":"'+time+'","comment":"'+comment+'"}'
@@ -195,7 +204,11 @@ class HJira(object):
                 errors = data['errors']['timeLogged']
                 W().write('{}\n' .format(errors), 'warning')
         elif response.status_code == 403:
-            W().write('{} Forbidden\n' .format(response.status_code), 'warning')
+            W().write('403 Forbidden\nThis may be caused by too many attempts '
+                          +'to enter your password. If this is the \n'
+                          +'case, visit your jira domain in a browser, logout and login again. This will \n'
+                          +'reset the count and Hermes will work once again.\n'
+                          , 'warning')
         elif response.status_code == 404:
             data = response.json()
             curframe = inspect.currentframe()
@@ -213,6 +226,8 @@ class HJira(object):
         :param target: 'assignee' or 'project', default is 'assignee'
         """
         self.jiraLogin()
+        if not self.loggedin:
+            return
 
         if key is None and target == 'assignee':
             key = self.user
@@ -311,6 +326,8 @@ class HJira(object):
         param user: The issue assigne to be set.
         """
         self.jiraLogin()
+        if not self.loggedin:
+            return
 
         url = 'https://jira.esss.lu.se/rest/api/2/issue/'+ticket
         payload = '{"fields":{"assignee":{"name":"'+user+'"}}}'
@@ -366,6 +383,8 @@ class HJira(object):
             log = input('Would you like to log this? [Y/n]: ').lower()
             if log == "y":
                 self.jiraLogin()
+                if not self.loggedin:
+                    return
                 for i in range(len(tickets)):
                     W().write('\n{}\t{}\t{}\n'
                                   .format(tickets[i], times[i], comments[i]))
@@ -375,8 +394,40 @@ class HJira(object):
         else:
             W().write('No work to log found in {}\n' .format(path), 'warning')
 
+    def stop_loading(self):
+        self.stop = True
+        time.sleep(0.3)
+
+    def loading(self):
+        load_char = '|'
+        while True:
+            if load_char == '|':
+                load_char = '/'
+            elif load_char == '/':
+                load_char = '-'
+            elif load_char == '-':
+                load_char = '\\'
+            elif load_char == '\\':
+                load_char = '/'
+            elif load_char == '/':
+                load_char = '|'
+            W().write('\rloading {}' .format(load_char), 'task')
+            sys.stdout.flush()
+            if self.stop == True:
+                self.stop = False
+                sys.stdout.flush()
+                break
+            time.sleep(0.15)
+
     def graph(self, ticket, shape='box'):
         self.jiraLogin()
+        if not self.loggedin:
+            return
+
+        t = threading.Thread(target=self.loading)
+        t.daemon = False
+        t.start()
+
         path = os.path.dirname(os.path.abspath(__file__)) # Path to hermes dir
         options = {
             'cookie' : None,
@@ -415,9 +466,8 @@ class HJira(object):
                                           options['ignore_subtasks'],
                                           options['traverse'],
                                           options['word_wrap'])
-        except requests.exceptions.HTTPError: #TODO: same whatever issue fix this
-            W().write('Cannot find \'{}\'\n'
-                              .format(ticket), 'warning')
+        except requests.exceptions.HTTPError:
+            W().write('Dang, something went wrong\n', 'warning')
             return
 
         if options['local']:
@@ -432,6 +482,7 @@ class HJira(object):
                                         options['image_file'],
                                         options['node_shape'])
 
+        self.stop_loading()
         W().write('Saved image to {}\n'
                           .format(options['image_file']), 'ok')
 

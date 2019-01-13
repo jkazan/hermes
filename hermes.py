@@ -29,6 +29,7 @@ class CLIReactor(object):
                 Write().write("\n")
                 return
             except KeyboardInterrupt:
+                self.hjira.stop_loading() # If jira is loading, stop it
                 Write().write("\n")
                 pass
 
