@@ -27,7 +27,7 @@ class HJira(object):
         self.stop = False
         self.loggedin = False
 
-    def jiraLogin(self):
+    def login(self):
         """" Login to Jira account. """
         user_file = 'jira.user'
         script_file = os.path.basename(__file__)
@@ -95,7 +95,7 @@ class HJira(object):
         param ticket: Jira ticket key.
         param comment: Comment to post to ticket.
         """
-        self.jiraLogin()
+        self.login()
         if not self.loggedin:
             return
 
@@ -110,7 +110,7 @@ class HJira(object):
 
         param ticket: Jira ticket key.
         """
-        self.jiraLogin()
+        self.login()
         if not self.loggedin:
             return
 
@@ -160,7 +160,7 @@ class HJira(object):
         param time: Time spent to post to ticket's work log..
         param comment: Comment to post to ticket's work log.
         """
-        self.jiraLogin()
+        self.login()
         if not self.loggedin:
             return
 
@@ -188,7 +188,7 @@ class HJira(object):
         elif response.status_code == 201:
             W().write('Successfully posted\n', 'ok')
             return True
-        elif response.status_code == 400:
+        elif response.status_code == 400 or response.status_code == 404:
             data = response.json()
             curframe = inspect.currentframe()
             calframe = inspect.getouterframes(curframe, 2)
@@ -196,7 +196,6 @@ class HJira(object):
             if data['errorMessages']:
                 errorMessages = data['errorMessages'][0]
                 W().write('{}\n' .format(errorMessages), 'warning')
-
             if caller == 'assign':
                 errors = data['errors']['assignee']
                 W().write('{}\n' .format(errors), 'warning')
@@ -204,18 +203,11 @@ class HJira(object):
                 errors = data['errors']['timeLogged']
                 W().write('{}\n' .format(errors), 'warning')
         elif response.status_code == 403:
-            W().write('403 Forbidden\nThis may be caused by too many attempts '
+            W().write('Forbidden\nThis may be caused by too many attempts '
                           +'to enter your password. If this is the \n'
                           +'case, visit your jira domain in a browser, logout and login again. This will \n'
                           +'reset the count and Hermes will work once again.\n'
                           , 'warning')
-        elif response.status_code == 404:
-            data = response.json()
-            curframe = inspect.currentframe()
-            calframe = inspect.getouterframes(curframe, 2)
-            caller = calframe[1][3]
-            errorMessages = data['errorMessages'][0]
-            W().write('{}\n' .format(errorMessages), 'warning')
 
         return False
 
@@ -225,7 +217,7 @@ class HJira(object):
         :param key: Name of Jira user or project
         :param target: 'assignee' or 'project', default is 'assignee'
         """
-        self.jiraLogin()
+        self.login()
         if not self.loggedin:
             return
 
@@ -318,6 +310,7 @@ class HJira(object):
                                                             child[1],
                                                             child[2],
                                                             child[3]), 'task')
+        return tickets, issue_types, summaries, progress
 
     def assign(self, ticket, user):
         """Assign an issue to a user.
@@ -325,7 +318,7 @@ class HJira(object):
         param ticket: Jira issue.
         param user: The issue assigne to be set.
         """
-        self.jiraLogin()
+        self.login()
         if not self.loggedin:
             return
 
@@ -382,7 +375,7 @@ class HJira(object):
         if match_flag:
             log = input('Would you like to log this? [Y/n]: ').lower()
             if log == "y":
-                self.jiraLogin()
+                self.login()
                 if not self.loggedin:
                     return
                 for i in range(len(tickets)):
@@ -420,7 +413,7 @@ class HJira(object):
             time.sleep(0.15)
 
     def graph(self, ticket, shape='box'):
-        self.jiraLogin()
+        self.login()
         if not self.loggedin:
             return
 
@@ -468,7 +461,6 @@ class HJira(object):
                                           options['word_wrap'])
         except requests.exceptions.HTTPError:
             W().write('Dang, something went wrong\n', 'warning')
-            return
 
         if options['local']:
             # jira.print_graph(jira.filter_duplicates(graph),
@@ -489,4 +481,5 @@ class HJira(object):
         imageViewerFromCommandLine = {'linux':'xdg-open',
                                   'win32':'explorer',
                                   'darwin':'open'}[sys.platform]
-        subprocess.run([imageViewerFromCommandLine, options['image_file']])
+        # subprocess.run([imageViewerFromCommandLine, options['image_file']])
+        return options['image_file']
