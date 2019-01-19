@@ -4,16 +4,53 @@ import os
 import shlex
 from terminal import Write, Color
 from jira import HJira
+from mainframe import App
 from install import HInstall
+
+import readline
+
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout
+# from PyQt5.QtGui import QGuiApplication
+# from PyQt5.QtQml import qmlRegisterType, QQmlComponent, QQmlEngine
+# from PyQt5.QtQuick import QQuickView
+# from PyQt5.QtCore import QUrl
+# import sys
+# import ctypes
+# from ctypes import util
+# ctypes.CDLL(util.find_library('GL'), ctypes.RTLD_GLOBAL)
+
 
 class CLIReactor(object):
     """Hermes Command Line Interface."""
-
     def __init__(self):
         """Initialization."""
         self.event_loop_active = True
         self.hjira = HJira()
         self.hinstall = HInstall()
+        self.commands = {
+            # name           function
+            # HERMES ######################
+            "help"          : self.help,
+            "quit"          : self.quit,
+            # JIRA ########################
+            "assign"        : self.hjira.assign,
+            "comment"       : self.hjira.comment,
+            "comments"      : self.hjira.comments,
+            "graph"         : self.hjira.graph,
+            "log"           : self.hjira.log,
+            "org"           : self.hjira.org,
+            "tickets"       : self.hjira.tickets,
+            "username"      : self.hjira.username,
+            # INSTALL #####################
+            "install"       : self.hinstall.install,
+            }
+
+    def completer(self, text, state): #TODO: move to terminal.py
+        options = [i for i in self.commands if i.startswith(text)]
+        if state < len(options):
+            return options[state]
+        else:
+            return None
 
     def run(self):
         """Run script."""
@@ -22,6 +59,8 @@ class CLIReactor(object):
         while self.event_loop_active:
             prompt_color = Write.colors['prompt'].readline_escape
             prompt = "{} >> ".format(prompt_color('Hermes'))
+            readline.parse_and_bind("tab: complete")
+            readline.set_completer(self.completer)
 
             try:
                 self.dataReceived(input(prompt))
@@ -109,31 +148,13 @@ class CLIReactor(object):
         if not command:
             return
 
-        commands = {
-            # name           function
-            # HERMES ######################
-            "help"          : self.help,
-            "quit"          : self.quit,
-            # JIRA ########################
-            "assign"        : self.hjira.assign,
-            "comment"       : self.hjira.comment,
-            "comments"      : self.hjira.comments,
-            "graph"         : self.hjira.graph,
-            "log"           : self.hjira.log,
-            "org"           : self.hjira.org,
-            "tickets"       : self.hjira.tickets,
-            "username"      : self.hjira.username,
-            # INSTALL #####################
-            "install"       : self.hinstall.install,
-            }
-
         # Check if we have a valid command
-        if command not in commands:
+        if command not in self.commands:
             Write().write("Invalid command '{}'\n" .format(command), "warning")
             Write().write("Type 'help' to see all commands\n")
             return
 
-        function = commands[command]
+        function = self.commands[command]
 
         try:
             args = self.parse(data)
@@ -154,5 +175,10 @@ class CLIReactor(object):
         return slit_args
 
 if __name__ == '__main__':
-    reactor = CLIReactor()
-    reactor.run()
+    app = QApplication([])
+    mainf = App()
+    mainf.show()
+    app.exec_()
+
+    # reactor = CLIReactor()
+    # reactor.run()
