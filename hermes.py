@@ -175,10 +175,11 @@ class CLIReactor(object):
         return slit_args
 
 if __name__ == '__main__':
-    app = QApplication([])
-    mainf = App()
-    mainf.show()
-    app.exec_()
+    print("test")
+    # app = QApplication([])
+    # mainf = App()
+    # mainf.show()
+    # app.exec_()
 
-    # reactor = CLIReactor()
-    # reactor.run()
+    # # reactor = CLIReactor()
+    # # reactor.run()
