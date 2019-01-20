@@ -16,8 +16,6 @@ import textwrap
 import threading
 import time
 
-import threading
-
 class HJira(object):
 
     def __init__(self):
@@ -27,14 +25,26 @@ class HJira(object):
         self.stop = False
         self.loggedin = False
 
-    def login(self):
+    def login(self, user=None, password=None):
         """" Login to Jira account. """
-        user_file = 'jira.user'
-        script_file = os.path.basename(__file__)
-        path = os.path.dirname(os.path.abspath(__file__))
 
         if self.loggedin:
             return
+
+        if user is not None: # Gui is running
+            self.user = user
+            self.auth = (self.user, password)
+            url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee=' + self.user
+            response = requests.get(url, auth=self.auth, headers=self.headers)
+            self.loggedin = self.response_ok(response)
+            if self.loggedin:
+                return True
+            else:
+                return False
+
+        user_file = 'jira.user'
+        script_file = os.path.basename(__file__)
+        path = os.path.dirname(os.path.abspath(__file__))
 
         if os.path.isfile(path+'/'+user_file):
             with open(path+'/'+user_file, 'r') as f:
