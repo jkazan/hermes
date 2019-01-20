@@ -180,5 +180,5 @@ if __name__ == '__main__':
     mainf.show()
     app.exec_()
 
-    # # reactor = CLIReactor()
-    # # reactor.run()
+    # reactor = CLIReactor()
+    # reactor.run()
