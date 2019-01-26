@@ -10,8 +10,6 @@ from PyQt5 import QtGui
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 
-TIME_LIMIT = 12
-
 class External(QThread):
     """
     Runs a external thread.

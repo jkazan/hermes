@@ -167,7 +167,7 @@ class CLIReactor(object):
 
 if __name__ == '__main__':
     app = QApplication([])
-    mainf = MainWindow()
+    mainf = MainWindow("dark")
     mainf.show()
     app.exec_()
 

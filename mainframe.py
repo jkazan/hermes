@@ -8,22 +8,13 @@ from dialog import Login
 import time
 
 class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self):
+    def __init__(self, theme="dark"):
         super().__init__()
-        self.loading_done = QtCore.pyqtSignal(int)
-        theme = "dark"
-        self.top_menus = []
-        self.path = os.path.dirname(os.path.abspath(__file__))+'/imgs/'
-        self.movie = QtGui.QMovie(self.path + "loading.gif")
-        # self.movie.start()
-        self.empty = QtWidgets.QPushButton()
-        self.l_loading = QtWidgets.QLabel() # widget for holding movie
-        self.logged_in = False
         if theme == "dark":
             self.colors = {
                 "window" : "black",
                 "side" : "black",
-                "main" : "rgba(15, 15, 15, 255)",
+                "main" : "rgba(25, 25, 25, 255)",
                 "top" : "rgba(31, 81, 60, 255)",
                 }
         elif theme == "light":
@@ -31,11 +22,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 "window" : "rgba(100, 100, 100, 255)",
                 "side" : "rgba(100, 100, 100, 255)",
                 "main" : "white",
-                "top" : "rgba(224, 195, 174, 255)",
+                "top" : "rgba(31, 81, 60, 255)",
                 }
-
         self.title = "Hermes"
         self.jira = HJira()
+        self.loading_done = QtCore.pyqtSignal(int)
+        self.path = os.path.dirname(os.path.abspath(__file__))+'/imgs/'
+        self.movie = QtGui.QMovie(self.path + "loading.gif")
+        self.empty = QtWidgets.QPushButton()
+        self.l_loading = QtWidgets.QLabel() # widget for holding movie
+        self.logged_in = False
+        self.top_menus = []
 
         self.initUI()
 
@@ -45,12 +42,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Central layout
         w_central, hbox_central = self.setupCentralLayout(self.colors["window"])
-
+#TODO: send jira top menu to Login
         # Side Menu
-        w_side_menu, vbox_side_menu, side_buttons = self.setupSideMenu(self.colors["side"])
+        w_side_menu, side_buttons = self.setupSideMenu(self.colors["side"])
 
         # Main field
-        w_main_field, vbox_main_field = self.setupMainField(self.colors["main"])
+        w_main_field, vbox_main_field = self.setupMainField(self.colors["main"], side_buttons)
 
         # Set central widget
         self.setCentralWidget(w_central)
@@ -58,43 +55,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # Add side menu and main field
         hbox_central.addWidget(w_side_menu)
         hbox_central.addWidget(w_main_field)
-
-        # Jira top menu
-        self.jira_top_menu = TopMenu(self.colors["top"], {
-            "Tickets" : self.path+"tickets.png",
-            "Graph" : self.path+"graph.png",
-            "Log Work" : self.path+"log.png",
-            "Comments" : self.path+"comments.png",
-            })
-        b_graph = self.jira_top_menu.buttons[1]
-        # b_graph.clicked.connect(self.graph)
-        self.top_menus.append(self.jira_top_menu)
-        vbox_main_field.addWidget(self.jira_top_menu)
-        # vbox_main_field.addStretch(10)
-
-        # Install top menu
-        self.install_top_menu = TopMenu(self.colors["top"], {
-            "e3" : self.path+"e3.png",
-            "css" : self.path+"css.png",
-            "plcfactory" : self.path+"settings.png",
-            "beast" : self.path+"settings.png",
-            })
-        side_buttons["install"].clicked.connect(lambda:self.showTop(self.install_top_menu))
-        self.top_menus.append(self.install_top_menu)
-        vbox_main_field.addWidget(self.install_top_menu)
-
-        # Settings top menu
-        self.settings_top_menu = TopMenu(self.colors["top"], {
-            "User" : self.path+"e3.png",
-            "Theme" : self.path+"css.png",
-            "Whatever" : self.path+"settings.png",
-            })
-        # side_buttons["settings"].clicked.connect(self.showTop(self.settings_top_menu))
-        side_buttons["settings"].clicked.connect(lambda:self.showTop(self.settings_top_menu))
-        self.top_menus.append(self.settings_top_menu)
-        vbox_main_field.addWidget(self.settings_top_menu)
-
-        vbox_main_field.addStretch(10)
 
         self.show()
 
@@ -172,14 +132,52 @@ class MainWindow(QtWidgets.QMainWindow):
             "settings" : b_settings,
             }
 
-        return widget, layout, side_buttons
+        return widget, side_buttons
 
-    def setupMainField(self, color):
+    def setupMainField(self, color, side_buttons):
         widget = QtWidgets.QWidget(self)
-        widget.setStyleSheet("background-color:"+color+";")
+        widget.setStyleSheet("background-color:"+color+";") #TODO: color
         layout = QtWidgets.QVBoxLayout(widget)
         layout.setContentsMargins(0,0,0,0)
+        self.top_menus = self.setupTopMenus(side_buttons)
+
+        for menu in self.top_menus:
+            layout.addWidget(menu)
+
+        layout.addStretch(10)
         return widget, layout
+
+    def setupTopMenus(self, side_buttons):
+        jira = TopMenu(self.colors["top"], {
+            "Tickets" : self.path+"tickets.png",
+            "Graph" : self.path+"graph.png",
+            "Log Work" : self.path+"log.png",
+            "Comments" : self.path+"comments.png",
+            })
+        side_buttons["jira"].clicked.connect(lambda:self.showJira(jira))
+        # b_graph = self.jira.buttons[1]
+        # b_graph.clicked.connect(self.graph)
+
+        # Install top menu
+        install = TopMenu(self.colors["top"], {
+            "e3" : self.path+"e3.png",
+            "css" : self.path+"css.png",
+            "plcfactory" : self.path+"settings.png",
+            "beast" : self.path+"settings.png",
+            })
+        side_buttons["install"].clicked.connect(lambda:self.showTop(install))
+
+        # Settings top menu
+        settings = TopMenu(self.colors["top"], {
+            "User" : self.path+"e3.png",
+            "Theme" : self.path+"css.png",
+            "Whatever" : self.path+"settings.png",
+            })
+        side_buttons["settings"].clicked.connect(lambda:self.showTop(settings))
+
+        return [jira, install, settings]
+
+
 
     def createButton(self, label, icon_path):
         b = QtWidgets.QPushButton()
@@ -210,7 +208,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def login(self):
         if not self.jira.loggedin:
             b_login = QtWidgets.QPushButton()
-            login_dialog = Login(self.jira, self.jira_top_menu)
+            login_dialog = Login(self.jira, self.top_menus[0])
 
     def showTop(self, menu):
         self.hideTops()
@@ -219,6 +217,10 @@ class MainWindow(QtWidgets.QMainWindow):
     def hideTops(self):
         for menu in self.top_menus:
             menu.hide()
+
+    def showJira(self, menu):
+        if self.jira.loggedin:
+            self.showTop(menu)
 
 
 # class External(QtCore.QThread):
