@@ -1,29 +1,57 @@
+import sys
 import os
-from PyQt5 import QtGui
-from PyQt5 import QtWidgets
-from PyQt5 import QtCore
-from jira import HJira
-import threading
 import time
 import json
 
-class Login(QtWidgets.QDialog):
-    def __init__(self, hjira, login_icon_path, cancel_icon_path,
-                     checkmark_icon_path, parent=None):
-        super(Login, self).__init__(parent)
+from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtWidgets import (QApplication, QDialog,
+                             QProgressBar, QPushButton)
+from PyQt5 import QtGui
+from PyQt5 import QtWidgets
+from PyQt5 import QtCore
+
+TIME_LIMIT = 12
+
+class External(QThread):
+    """
+    Runs a external thread.
+    """
+    loading_signal = pyqtSignal(bool)
+
+    def __init__(self, jira, cmd, args, parent=None):
+        super(External, self).__init__(parent)
+        self.jira = jira
+        self.cmd = cmd
+        self.args = args
+        self.response_ok = False
+
+    def run(self):
+        self.loading_signal.emit(True)
+        login_ok = self.jira.login(*self.args)
+        if login_ok:
+            self.response_ok = True
+
+        self.loading_signal.emit(False)
+
+class Login(QDialog):
+    """
+    Simple dialog that consists of a Progress Bar and a Button.
+    Clicking on the button results in the start of a timer and
+    updates the progress bar.
+    """
+    def __init__(self, jira, jira_top_menu):
+        super().__init__()
         self.path = os.path.dirname(os.path.abspath(__file__))+'/imgs/'
-        self.user_file = "jira.user"
-        self.login_thread = LoginThread(self)
-        self.remembered = False
+        self.movie = QtGui.QMovie(self.path + "loading.gif")
+        self.jira = jira
+        self.jira_top_menu = jira_top_menu
         self.login_ok = False
-        self.hjira = hjira
-        self.icon_paths = [login_icon_path, cancel_icon_path, checkmark_icon_path]
+
+        self.initUI()
+
+    def initUI(self):
         self.setStyleSheet("background-color: rgba(36, 70, 122, 200);")
         self.setWindowTitle("Login")
-        self.diag_title = "Enter username and password"
-        self.edit_labels = ["Username:", "Password:"]
-        self.edit_fields = []
-        self.buttons = []
 
         # Main layout
         main_layout_container = QtWidgets.QWidget(self)
@@ -31,11 +59,10 @@ class Login(QtWidgets.QDialog):
         main_layout = QtWidgets.QVBoxLayout(main_layout_container)
 
         # Title
-        self.l_title = QtWidgets.QLabel(self.diag_title)
+        self.l_title = QtWidgets.QLabel("Enter username and password")
         self.l_title.setFont(QtGui.QFont("Monospace", 10, QtGui.QFont.Bold))
         self.l_title.setStyleSheet("color:white;")
         self.l_title.setAlignment(QtCore.Qt.AlignCenter)
-        main_layout.addWidget(self.l_title)
 
         # Edit layout
         edit_layout_container = QtWidgets.QWidget(self)
@@ -43,33 +70,31 @@ class Login(QtWidgets.QDialog):
 
         # Username
         self.ef_user = self.createEditField("Username")
-        edit_layout.addWidget(self.ef_user)
-        self.edit_fields.append(self.ef_user)
 
         # Password
         self.ef_pass = self.createEditField("Password")
         self.ef_pass.setEchoMode(QtWidgets.QLineEdit.Password)
+
+        # Add edit fields to edit layout
+        edit_layout.addWidget(self.ef_user)
         edit_layout.addWidget(self.ef_pass)
-        self.edit_fields.append(self.ef_pass)
 
         # Check if remembered
-        if os.path.isfile(self.path+self.user_file):
-            with open(self.path+self.user_file, 'r') as f:
+        file_path = os.path.dirname(os.path.abspath(__file__))+"/jira.user"
+        remembered = False
+        if os.path.isfile(file_path):
+            with open(file_path, 'r') as f:
                 json_data = json.load(f)
                 #TODO: try getting the user, user may have corrupted the file!
-                self.remembered_user = json_data['user']
-                self.ef_user.insert(self.remembered_user)
-                # edit_layout_container.setTabOrder(self.ef_pass, self.ef_user)
-                self.remembered = True
-                self.ef_pass.setFocus()
-
-        # Add edit layout to main
-        main_layout.addWidget(edit_layout_container)
+                remembered_user = json_data['user']
+                self.ef_user.insert(remembered_user)
+                remembered = True
 
         # Checkbox
         checkbox_container = QtWidgets.QWidget(self)
         checkbox_container.setFixedHeight(35)
         checkbox_layout = QtWidgets.QHBoxLayout(checkbox_container)
+        checkbox_layout.setAlignment(QtCore.Qt.AlignCenter)
         self.c_remember = QtWidgets.QCheckBox("Remember me")
         self.c_remember.setFont(QtGui.QFont("Monospace", 10, QtGui.QFont.Bold))
         self.c_remember.setStyleSheet("""
@@ -79,208 +104,107 @@ class Login(QtWidgets.QDialog):
 
             QCheckBox::indicator {
             background-color:rgba(16, 50, 100, 200);
-            width: 16px;
-            height: 16px;
+            color:white;
+            width: 14px;
+            height: 14px;
             }
 
             QCheckBox::indicator:checked {
-            image: url("""+checkmark_icon_path+""");
+            image: url("""+self.path+"""checkmark.png);
             }
             """)
-        if self.remembered:
+        if remembered:
             self.c_remember.setCheckState(2)
-        # self.c_remember.setStyleSheet("color:white;")
-        # self.c_remember.stateChanged.connect(self.remember)
-        checkbox_layout.setAlignment(QtCore.Qt.AlignCenter)
+
         checkbox_layout.addWidget(self.c_remember)
-        main_layout.addWidget(checkbox_container)
 
         # Button layout
         button_layout_container = QtWidgets.QWidget(self)
         button_layout_container.setFixedHeight(50)
-
         button_layout = QtWidgets.QHBoxLayout(button_layout_container)
 
         # Add login button
-        b_login = self.createButton(login_icon_path)
-        b_login.clicked.connect(self.login)
-        self.buttons.append(b_login)
+        b_login = QtWidgets.QPushButton()
+        b_login.setStyleSheet("border: none;")
+        b_login.setIcon(QtGui.QIcon(self.path+"login.png"))
+        b_login.setIconSize(QtCore.QSize(100, 100))
+        b_login.setCheckable(True)
+        b_login.pressed.connect(lambda:self.pressed(self.path+"login.png"))
+        b_login.released.connect(lambda:self.released(self.path+"login.png"))
         button_layout.addWidget(b_login)
 
         # Add cancel button
-        b_cancel = self.createButton(cancel_icon_path)
+        b_cancel = QtWidgets.QPushButton()
+        b_cancel.setStyleSheet("border: none;")
+        b_cancel.setIcon(QtGui.QIcon(self.path+"cancel.png"))
+        b_cancel.setIconSize(QtCore.QSize(100, 100))
+        b_cancel.setCheckable(True)
+        b_cancel.pressed.connect(lambda:self.pressed(self.path+"cancel.png"))
+        b_cancel.released.connect(lambda:self.released(self.path+"cancel.png"))
         b_cancel.clicked.connect(self.close)
         button_layout.addWidget(b_cancel)
-        self.buttons.append(b_cancel)
-
-        # Add button layout to main
-        main_layout.addWidget(button_layout_container)
-        s = QtWidgets.QSpacerItem(20, 25, QtWidgets.QSizePolicy.Minimum,
-                                      QtWidgets.QSizePolicy.Expanding)
-        main_layout.addItem(s)
 
         # Add loading gif
-        self.l_loading = QtWidgets.QLabel()
+        self.l_loading = QtWidgets.QLabel(self) # widget for holding movie
+
+        self.l_loading.setFixedHeight(40)
         self.l_loading.setAlignment(QtCore.Qt.AlignCenter)
-        path = os.path.dirname(os.path.abspath(__file__))+'/'
-        self.movie = QtGui.QMovie(path + "loading.gif")
         self.movie.setScaledSize(QtCore.QSize(40, 40))
         self.l_loading.setMovie(self.movie)
-        main_layout.addWidget(self.l_loading)
 
-        # Fix window size to fit content)
-        self.setFixedSize(main_layout.sizeHint())
+        self.empty = QtWidgets.QPushButton(self) # widget for holding empty image
+        self.empty.hide()
+        self.empty.setIcon(QtGui.QIcon(self.path + "empty.png"))
+        self.empty.setFixedHeight(40)
+        self.empty.setStyleSheet("border: none;")
 
-        # Execute
-        self.exec_()
-
-    def createEditField(self, text):
-        ef = QtWidgets.QLineEdit()
-        ef.setPlaceholderText(text)
-        ef.setFixedWidth(220)
-        ef.setFont(QtGui.QFont("Monospace", 10, QtGui.QFont.Bold))
-        ef.setStyleSheet("background-color: rgba(16, 50, 100, 200); color:white; border: none;")
-
-        return ef
-
-    def createButton(self, icon_path):
-        b = QtWidgets.QPushButton()
-        b.setStyleSheet("border: none;")
-        b.setIcon(QtGui.QIcon(icon_path))
-        b.setIconSize(QtCore.QSize(100, 100))
-        b.setCheckable(True)
-        b.pressed.connect(self.pressed)
-        b.released.connect(self.released)
-        return b
-
-    def pressed(self):
-        b = self.sender()
-        icon_path = self.icon_paths[self.buttons.index(b)]
-        split = icon_path.split(".")
-        pressed_icon_path = split[0] + "_pressed." + split[1]
-        b.setIcon(QtGui.QIcon(pressed_icon_path))
-
-    def released(self):
-        b = self.sender()
-        icon_path = self.icon_paths[self.buttons.index(b)]
-        b.setIcon(QtGui.QIcon(icon_path))
-
-    def login(self):
-        # Check if not remembered, but want to remember
-        if not self.remembered or self.ef_user.text() != self.remembered_user:
-            if self.c_remember.isChecked:
-                with open(self.path+'/'+self.user_file, 'w') as f:
-                    f.write('{"user":"'+self.ef_user.text()+'"}')
-
-        self.movie.start()
-        self.l_loading.setVisible(True)
-        self.login_thread.start()
-
-    def loginOk(self):
-        return self.login_thread.loginOk()
-
-class LoginThread(QtCore.QThread):
-
-    def __init__(self, w):
-        QtCore.QThread.__init__(self)
-        self.w = w
-        self.login_ok = False
-
-    def __del__(self):
-        self.wait()
-
-    def run(self):
-        user = self.w.edit_fields[0].text()
-        password = self.w.edit_fields[1].text()
-        self.login_ok = self.w.hjira.login(user, password)
-        if self.login_ok:
-            self.w.l_loading.setVisible(False)
-            self.w.close()
-        else:
-            self.w.l_loading.setVisible(False)
-            self.w.l_title.setText("Invalid credentials, try again!")
-            self.w.l_title.setStyleSheet("color:red;")
-
-    def loginOk(self):
-        return self.login_ok
-
-
-class Dialog(QtWidgets.QDialog):
-    def __init__(self, hjira, window_title, ok_icon_path, cancel_icon_path, parent=None):
-        super(Dialog, self).__init__(parent)
-        self.accepted = False
-        self.path = os.path.dirname(os.path.abspath(__file__))+'/imgs/'
-        # self.thread = LoginThread(self)
-        self.hjira = hjira
-        self.icon_paths = [ok_icon_path, cancel_icon_path]
-        self.setStyleSheet("background-color: rgba(36, 70, 122, 200);")
-        self.setWindowTitle(window_title)
-        self.diag_title = "Enter Jira ticket"
-        # self.edit_labels = ["Username:", "Password:"]
-        # self.edit_fields = []
-        self.buttons = []
-
-        # Main layout
-        main_layout_container = QtWidgets.QWidget(self)
-        main_layout_container.setStyleSheet("background-color: rgba(0, 0, 0, 0);")
-        main_layout = QtWidgets.QVBoxLayout(main_layout_container)
-
-        # Title
-        self.l_title = QtWidgets.QLabel(self.diag_title)
-        self.l_title.setFont(QtGui.QFont("Monospace", 10, QtGui.QFont.Bold))
-        self.l_title.setStyleSheet("color:white;")
-        self.l_title.setAlignment(QtCore.Qt.AlignCenter)
         main_layout.addWidget(self.l_title)
-
-        # Edit layout
-        edit_layout_container = QtWidgets.QWidget(self)
-        edit_layout = QtWidgets.QVBoxLayout(edit_layout_container)
-
-        # Ticket
-        self.ef_ticket = self.createEditField("Ticket")
-        edit_layout.addWidget(self.ef_ticket)
-        # self.edit_fields.append(self.ef_ticket)
-
-        # Add edit layout to main
         main_layout.addWidget(edit_layout_container)
-
-        # Button layout
-        button_layout_container = QtWidgets.QWidget(self)
-        button_layout_container.setFixedHeight(50)
-        button_layout = QtWidgets.QHBoxLayout(button_layout_container)
-
-        # Add ok button
-        b_ok = self.createButton(ok_icon_path)
-        b_ok.clicked.connect(self.ok)
-        self.buttons.append(b_ok)
-        button_layout.addWidget(b_ok)
-
-        # Add cancel button
-        b_cancel = self.createButton(cancel_icon_path)
-        b_cancel.clicked.connect(self.close)
-        button_layout.addWidget(b_cancel)
-        self.buttons.append(b_cancel)
-
-        # Add button layout to main
-        main_layout.addWidget(button_layout_container)
-        s = QtWidgets.QSpacerItem(20, 25, QtWidgets.QSizePolicy.Minimum,
-                                      QtWidgets.QSizePolicy.Expanding)
-        main_layout.addItem(s)
-
-        # Add loading gif
-        self.l_loading = QtWidgets.QLabel()
-        self.l_loading.setAlignment(QtCore.Qt.AlignCenter)
-        path = os.path.dirname(os.path.abspath(__file__))+'/'
-        self.movie = QtGui.QMovie(path + "loading.gif")
-        self.movie.setScaledSize(QtCore.QSize(40, 40))
-        self.l_loading.setMovie(self.movie)
+        main_layout.addWidget(checkbox_container)
         main_layout.addWidget(self.l_loading)
+        main_layout.addWidget(self.empty)
+        main_layout.addWidget(button_layout_container)
 
         # Fix window size to fit content)
         self.setFixedSize(main_layout.sizeHint())
 
-        # Execute
-        self.exec_()
+        self.show()
+
+        b_login.clicked.connect(self.onButtonClick)
+
+    # def showHide(self):
+    #     if self.l_loading.isVisible():
+    #         self.l_loading.hide()
+    #     else:
+    #         self.l_loading.show()
+
+    def onButtonClick(self):
+        args = [self.ef_user.text(), self.ef_pass.text()]
+        self.calc = External(self.jira, "login", args)
+        self.calc.loading_signal.connect(self.loading)
+        self.calc.start()
+
+    def loading(self, load):
+        if load:
+            self.empty.hide()
+            self.l_loading.show()
+            self.movie.start()
+        else:
+            self.l_title.setStyleSheet("color:red;")
+            self.movie.stop()
+            self.l_loading.hide()
+            self.empty.show()
+
+            if self.calc.response_ok:
+                self.login_ok = True
+                if self.c_remember.isChecked:
+                    file_path = os.path.dirname(os.path.abspath(__file__)) + "/jira.user"
+                    with open(file_path, 'w') as f:
+                        f.write('{"user":"'+self.ef_user.text()+'"}')
+                self.close()
+                self.jira_top_menu.show()
+            else:
+                self.l_title.setText("Invalid credentials, try again!")
 
     def createEditField(self, text):
         ef = QtWidgets.QLineEdit()
@@ -288,36 +212,20 @@ class Dialog(QtWidgets.QDialog):
         ef.setFixedWidth(220)
         ef.setFont(QtGui.QFont("Monospace", 10, QtGui.QFont.Bold))
         ef.setStyleSheet("background-color: rgba(16, 50, 100, 200); color:white; border: none;")
-
         return ef
 
-    def createButton(self, icon_path):
-        b = QtWidgets.QPushButton()
-        b.setStyleSheet("border: none;")
-        b.setIcon(QtGui.QIcon(icon_path))
-        b.setIconSize(QtCore.QSize(100, 100))
-        b.setCheckable(True)
-        b.pressed.connect(self.pressed)
-        b.released.connect(self.released)
-        return b
-
-    def pressed(self):
+    def pressed(self, icon_path):
         b = self.sender()
-        icon_path = self.icon_paths[self.buttons.index(b)]
         split = icon_path.split(".")
         pressed_icon_path = split[0] + "_pressed." + split[1]
         b.setIcon(QtGui.QIcon(pressed_icon_path))
 
-    def released(self):
+    def released(self, icon_path):
         b = self.sender()
-        icon_path = self.icon_paths[self.buttons.index(b)]
         b.setIcon(QtGui.QIcon(icon_path))
 
-    def ok(self):
-        self.accepted = True
-        self.close()
-        # self.movie.start()
-        # self.l_loading.setVisible(True)
 
-    def text(self):
-        return self.ef_ticket.text()
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = Login()
+    sys.exit(app.exec_())

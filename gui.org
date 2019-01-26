@@ -1,0 +1,28 @@
+* Main
+** side menu
+*** Jira
+*** Install
+*** Settings
+*** Empty
+*** loading gif
+** right menu
+*** Jira
+**** Top menu
+**** Main field
+***** Assign
+***** Comment
+***** Comments
+***** Graph
+***** Log
+***** Org
+***** Tickets
+*** Install
+**** Top menu
+**** Main field
+***** e3 form
+***** css form or diag?
+***** plcfactory form or diag?
+***** beast form or diag?
+*** Settings
+**** Top menu
+**** Main field

@@ -4,21 +4,12 @@ import os
 import shlex
 from terminal import Write, Color
 from jira import HJira
-from mainframe import App
+from mainframe import MainWindow
 from install import HInstall
 
 import readline
 
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout
-# from PyQt5.QtGui import QGuiApplication
-# from PyQt5.QtQml import qmlRegisterType, QQmlComponent, QQmlEngine
-# from PyQt5.QtQuick import QQuickView
-# from PyQt5.QtCore import QUrl
-# import sys
-# import ctypes
-# from ctypes import util
-# ctypes.CDLL(util.find_library('GL'), ctypes.RTLD_GLOBAL)
-
+from PyQt5.QtWidgets import QApplication
 
 class CLIReactor(object):
     """Hermes Command Line Interface."""
@@ -176,7 +167,7 @@ class CLIReactor(object):
 
 if __name__ == '__main__':
     app = QApplication([])
-    mainf = App()
+    mainf = MainWindow()
     mainf.show()
     app.exec_()
 

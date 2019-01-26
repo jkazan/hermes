@@ -112,7 +112,7 @@ class HJira(object):
         url = 'https://jira.esss.lu.se/rest/api/latest/issue/'+ticket+'/comment'
         payload = '{"body":"'+comment+'"}'
         response = requests.post(
-            url, auth=self.auth, headers=self.headers, data=payload)
+            url, auth=self.auth, headers=self.headers, data=payload.encode('utf8'))
         self.response_ok(response, ticket)
 
     def comments(self, ticket):
@@ -177,7 +177,7 @@ class HJira(object):
         url = 'https://jira.esss.lu.se/rest/api/2/issue/'+ticket+'/worklog'
         payload = '{"timeSpent":"'+time+'","comment":"'+comment+'"}'
         response = requests.post(
-            url, auth=self.auth, headers=self.headers, data=payload)
+            url, auth=self.auth, headers=self.headers, data=payload.encode('utf8'))
         self.response_ok(response, ticket)
 
     def response_ok(self, response, ticket=None):

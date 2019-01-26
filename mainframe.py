@@ -1,36 +1,43 @@
-# import os
-# import sys
+import os
+import time
 from PyQt5 import QtWidgets
-# from PyQt5 import QtGui
-# from PyQt5 import QtCore
-# from PyQt5.QtWidgets import QApplication, QWidget, QLabel
-# from PyQt5.QtGui import QIcon, QPixmap
-# from PyQt5.QtCore import Qt, QSize
-# from jira import HJira
-# from dialog import Login, Dialog
+from PyQt5 import QtGui
+from PyQt5 import QtCore
+from jira import HJira
+from dialog import Login
+import time
 
-# from photoviewer import PhotoViewer
-
-class App(QtWidgets.QMainWindow):
+class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
+        self.loading_done = QtCore.pyqtSignal(int)
         theme = "dark"
+        self.top_menus = []
+        self.path = os.path.dirname(os.path.abspath(__file__))+'/imgs/'
+        self.movie = QtGui.QMovie(self.path + "loading.gif")
+        # self.movie.start()
+        self.empty = QtWidgets.QPushButton()
+        self.l_loading = QtWidgets.QLabel() # widget for holding movie
+        self.logged_in = False
         if theme == "dark":
             self.colors = {
                 "window" : "black",
                 "side" : "black",
                 "main" : "rgba(15, 15, 15, 255)",
+                "top" : "rgba(31, 81, 60, 255)",
                 }
-        else:
+        elif theme == "light":
             self.colors = {
                 "window" : "rgba(100, 100, 100, 255)",
                 "side" : "rgba(100, 100, 100, 255)",
                 "main" : "white",
+                "top" : "rgba(224, 195, 174, 255)",
                 }
 
-        self.title = 'Hermes'
-        self.initUI()
+        self.title = "Hermes"
+        self.jira = HJira()
 
+        self.initUI()
 
     def initUI(self):
         # Main window
@@ -40,14 +47,54 @@ class App(QtWidgets.QMainWindow):
         w_central, hbox_central = self.setupCentralLayout(self.colors["window"])
 
         # Side Menu
-        w_side_menu, vbox_side_menu = self.setupSideMenu(self.colors["side"])
+        w_side_menu, vbox_side_menu, side_buttons = self.setupSideMenu(self.colors["side"])
 
         # Main field
         w_main_field, vbox_main_field = self.setupMainField(self.colors["main"])
 
+        # Set central widget
         self.setCentralWidget(w_central)
+
+        # Add side menu and main field
         hbox_central.addWidget(w_side_menu)
         hbox_central.addWidget(w_main_field)
+
+        # Jira top menu
+        self.jira_top_menu = TopMenu(self.colors["top"], {
+            "Tickets" : self.path+"tickets.png",
+            "Graph" : self.path+"graph.png",
+            "Log Work" : self.path+"log.png",
+            "Comments" : self.path+"comments.png",
+            })
+        b_graph = self.jira_top_menu.buttons[1]
+        # b_graph.clicked.connect(self.graph)
+        self.top_menus.append(self.jira_top_menu)
+        vbox_main_field.addWidget(self.jira_top_menu)
+        # vbox_main_field.addStretch(10)
+
+        # Install top menu
+        self.install_top_menu = TopMenu(self.colors["top"], {
+            "e3" : self.path+"e3.png",
+            "css" : self.path+"css.png",
+            "plcfactory" : self.path+"settings.png",
+            "beast" : self.path+"settings.png",
+            })
+        side_buttons["install"].clicked.connect(lambda:self.showTop(self.install_top_menu))
+        self.top_menus.append(self.install_top_menu)
+        vbox_main_field.addWidget(self.install_top_menu)
+
+        # Settings top menu
+        self.settings_top_menu = TopMenu(self.colors["top"], {
+            "User" : self.path+"e3.png",
+            "Theme" : self.path+"css.png",
+            "Whatever" : self.path+"settings.png",
+            })
+        # side_buttons["settings"].clicked.connect(self.showTop(self.settings_top_menu))
+        side_buttons["settings"].clicked.connect(lambda:self.showTop(self.settings_top_menu))
+        self.top_menus.append(self.settings_top_menu)
+        vbox_main_field.addWidget(self.settings_top_menu)
+
+        vbox_main_field.addStretch(10)
 
         self.show()
 
@@ -78,302 +125,169 @@ class App(QtWidgets.QMainWindow):
         widget.setFixedWidth(85)
         widget.setStyleSheet("background-color:"+color+";")
         layout = QtWidgets.QVBoxLayout(widget)
-        return widget, layout
+
+        # Jira button in side menu
+        b_jira, l_jira = self.createButton("Jira", self.path + "jira.png")
+        b_jira.clicked.connect(self.login)
+
+        # Install button in side menu
+        b_install, l_install = self.createButton("Install", self.path + "install.png")
+        # b_install.pressed.connect(self.install)
+
+        # Settings button in side menu
+        b_settings, l_settings = self.createButton("Settings", self.path + "settings.png")
+        # b_settings.pressed.connect(self.settings)
+
+        # Add all to layout
+        layout.addWidget(b_jira)
+        layout.addWidget(l_jira)
+        layout.addStretch(1)
+
+        layout.addWidget(b_install)
+        layout.addWidget(l_install)
+        layout.addStretch(1)
+
+        layout.addWidget(b_settings)
+        layout.addWidget(l_settings)
+        layout.addStretch(1)
+
+        # Stretch side menu to move buttons up
+        layout.addStretch(10)
+
+        # Add loading gif to side menu
+        self.l_loading.setFixedHeight(60)
+        self.l_loading.setAlignment(QtCore.Qt.AlignCenter)
+        self.movie.setScaledSize(QtCore.QSize(40, 40))
+        self.l_loading.setMovie(self.movie)
+        self.l_loading.hide()
+        self.empty.setIcon(QtGui.QIcon(self.path + "empty.png"))
+        self.empty.setFixedHeight(60)
+        self.empty.setStyleSheet("border: none;")
+        layout.addWidget(self.l_loading)
+        layout.addWidget(self.empty)
+
+        side_buttons = {
+            "jira" : b_jira,
+            "install" : b_install,
+            "settings" : b_settings,
+            }
+
+        return widget, layout, side_buttons
 
     def setupMainField(self, color):
         widget = QtWidgets.QWidget(self)
         widget.setStyleSheet("background-color:"+color+";")
         layout = QtWidgets.QVBoxLayout(widget)
+        layout.setContentsMargins(0,0,0,0)
         return widget, layout
 
+    def createButton(self, label, icon_path):
+        b = QtWidgets.QPushButton()
+        b.setStyleSheet("border: none;")
+        b.setIcon(QtGui.QIcon(icon_path))
+        b.setIconSize(QtCore.QSize(64, 64))
+        b.setCheckable(True)
+        b.pressed.connect(lambda:self.pressed(icon_path))
+        b.released.connect(lambda:self.released(icon_path))
+
+        l = QtWidgets.QLabel(label)
+        l.setFont(QtGui.QFont("Monospace", 10, QtGui.QFont.Bold))
+        l.setStyleSheet("color:white;")
+        l.setAlignment(QtCore.Qt.AlignCenter)
+
+        return b, l
+
+    def pressed(self, i):
+        b = self.sender()
+        split = i.split(".")
+        pressed_icon_path = split[0] + "_pressed." + split[1]
+        b.setIcon(QtGui.QIcon(pressed_icon_path))
+
+    def released(self, i):
+        b = self.sender()
+        b.setIcon(QtGui.QIcon(i))
+
+    def login(self):
+        if not self.jira.loggedin:
+            b_login = QtWidgets.QPushButton()
+            login_dialog = Login(self.jira, self.jira_top_menu)
+
+    def showTop(self, menu):
+        self.hideTops()
+        menu.show()
+
+    def hideTops(self):
+        for menu in self.top_menus:
+            menu.hide()
 
 
+# class External(QtCore.QThread):
+#     def __init__(self, mainwindow, parent=None):
+#         self.mainwindow = mainwindow
+#         self.mainwindow.movie.start()
+#     def run(self):
+#         self.mainwindow.loading_done.connect(stopLoading)
+
+#     def stopLoading(self, value):
+#         if self.mainwindow.jira.loggedin:
+#             # self.mainwindow.showTop(self.mainwindow.jira_top_menu)
+#             self.mainwindow.top_menus[0].show()
+#         self.mainwindow.movie.stop()
 
 
+class TopMenu(QtWidgets.QWidget):
+    def __init__(self, color, spec):
+        super().__init__()
+        self.color = color
+        self.spec = spec
+        self.buttons = []
+        self.icon_paths = []
+        self.initUI()
 
-#         self.path = os.path.dirname(os.path.abspath(__file__))+'/imgs/'
-#         self.top_menus = []
-#         self.initUI()
-#         self.b1 = QtWidgets.QPushButton()
-#         self.hjira = HJira()
+    def initUI(self):
+        self.hide()
+        self.setStyleSheet("background-color: "+self.color+";")
+        self.setFixedHeight(100)
+        menu_layout = QtWidgets.QHBoxLayout(self)
+        menu_layout.setContentsMargins(0,0,0,0)
+        menu_layout.setSpacing(0)
 
-#     def initUI(self):
-#         self.setupMainWindow()
+        for label, icon_path in self.spec.items():
+            vbc = QtWidgets.QWidget()
+            vb = QtWidgets.QVBoxLayout(vbc)
+            vb.setContentsMargins(0,5,0,0)
 
-#         # Central layout
-#         central_widget, layout = self.setupCentralLayout()
+            b = self.createButton(icon_path)
 
-#         # Side menu
-#         side_menu, side_menu_container = self.sideMenu()
-#         layout.addWidget(side_menu_container)
-#         side_menu.setContentsMargins(5,15,0,0)
+            l = QtWidgets.QLabel(label)
+            l.setFont(QtGui.QFont("Monospace", 10, QtGui.QFont.Bold))
+            l.setStyleSheet("color:white;")
+            l.setAlignment(QtCore.Qt.AlignCenter)
 
-#         # Main field
-#         self.main_field, self.main_field_container = self.mainField()
-#         layout.addWidget(self.main_field_container)
-#         self.main_field.setContentsMargins(0,0,0,0)
+            vb.addWidget(b)
+            vb.addWidget(l)
+            menu_layout.addWidget(vbc)
 
-#         # Jira top menu
-#         self.jira_top_menu = TopMenu({
-#             "Tickets" : self.path+"tickets.png",
-#             "Graph" : self.path+"graph.png",
-#             "Log Work" : self.path+"log.png",
-#             "Comments" : self.path+"comments.png",
-#             })
-#         b_graph = self.jira_top_menu.buttons[1]
-#         b_graph.clicked.connect(self.graph)
-#         self.top_menus.append(self.jira_top_menu)
-#         self.main_field.addWidget(self.jira_top_menu)
+    def pressed(self, b, i):
+        name = i.split('.',1)
+        print(name[0] + '_pressed.png')
+        b.setIcon(QtGui.QIcon(name[0] + '_pressed.png'))
 
-#         # Install top menu
-#         self.install_top_menu = TopMenu({
-#             "e3" : self.path+"e3.png",
-#             "css" : self.path+"css.png",
-#             "plcfactory" : self.path+"settings.png",
-#             "beast" : self.path+"settings.png",
-#             })
-#         self.top_menus.append(self.install_top_menu)
-#         self.main_field.addWidget(self.install_top_menu)
+    def released(self, b, i):
+        name = i.split('.',1)
+        b.setIcon(QtGui.QIcon(name[0] + '.png'))
 
-#         # Settings top menu
-#         self.settings_top_menu = TopMenu({
-#             "User" : self.path+"e3.png",
-#             "Theme" : self.path+"css.png",
-#             "Whatever" : self.path+"settings.png",
-#             })
-#         self.top_menus.append(self.settings_top_menu)
-#         self.main_field.addWidget(self.settings_top_menu)
+    def createButton(self, icon_path):
+        b = QtWidgets.QPushButton()
+        b.setStyleSheet("border: none;")
+        b.setIcon(QtGui.QIcon(icon_path))
+        b.setIconSize(QtCore.QSize(64, 64))
+        b.setCheckable(True)
+        b.pressed.connect(lambda:self.pressed(b, icon_path))
+        b.released.connect(lambda:self.released(b, icon_path))
+        self.buttons.append(b)
 
-#         # Main field bottom
-#         self.main_field_bottom_container = QWidget()
-#         self.main_field_bottom_container.setStyleSheet(
-#             "background-color: rgba(15, 15, 15, 255);")
-#         self.main_field_bottom = QtWidgets.QGridLayout(self.main_field_bottom_container)
+        return b
 
-#         # Jira button in side menu
-#         b_jira = self.createButton("jira", "jira.png",
-#                                        self.showTopMenu,[self.jira_top_menu])
-
-#         b_jira.pressed.connect(self.login) #TODO: do this for the function send
-#                                            #to createButton too
-
-#         l_jira = self.createButtonLabel("Jira")
-#         side_menu.addWidget(b_jira)
-#         side_menu.addWidget(l_jira)
-#         side_menu.addStretch(1)
-
-#         # Install button in side menu
-#         b_install = self.createButton("install", "install.png",
-#                                           self.showTopMenu,
-#                                           [self.install_top_menu])
-
-#         l_install = self.createButtonLabel("Install")
-#         side_menu.addWidget(b_install)
-#         side_menu.addWidget(l_install)
-#         side_menu.addStretch(1)
-
-#         # Settings button in side menu
-#         b_settings = self.createButton("settings", "settings.png",
-#                                            self.showTopMenu,
-#                                            [self.settings_top_menu])
-
-#         l_settings = self.createButtonLabel("Settings")
-#         side_menu.addWidget(b_settings)
-#         side_menu.addWidget(l_settings)
-#         side_menu.addStretch(1)
-
-#         # Stretch side menu to move buttons up
-#         side_menu.addStretch(10)
-
-#         # Add loading gif to side menu
-#         self.l_loading = QtWidgets.QLabel()
-#         self.l_loading.setAlignment(QtCore.Qt.AlignCenter)
-#         path = os.path.dirname(os.path.abspath(__file__))+'/'
-#         self.movie = QtGui.QMovie(path + "loading.gif")
-#         self.movie.setScaledSize(QtCore.QSize(40, 40))
-#         self.l_loading.setMovie(self.movie)
-#         side_menu.addWidget(self.l_loading)
-
-
-#         self.main_field.addWidget(self.main_field_bottom_container)
-#         self.setCentralWidget(central_widget)
-#         self.show()
-
-#     def setupMainWindow(self):
-#         self.setWindowTitle(self.title)
-#         # self.setGeometry(self.left, self.top, self.width, self.height)
-
-#         # Window size
-#         self.resize(1024, 768)
-#         self.setMinimumSize(800, 400)
-#         # self.setMaximumSize(1920, 1080)
-
-#         # Center window
-#         qtRectangle = self.frameGeometry()
-#         centerPoint = QtWidgets.QDesktopWidget().availableGeometry().center()
-#         qtRectangle.moveCenter(centerPoint)
-#         self.move(qtRectangle.topLeft())
-#         # self.setStyleSheet("background-color: rgba(53, 53, 53, 255);");
-#         self.setProperty("windowOpacity", 0.95);
-
-#     def setupCentralLayout(self):
-#         # Central widget for the main window
-#         central_widget = QtWidgets.QWidget(self)
-#         layout = QtWidgets.QHBoxLayout()
-#         layout.setContentsMargins(0,0,0,0)
-#         central_widget.setLayout(layout)
-#         central_widget.setStyleSheet("background-color:black;")
-#         return central_widget, layout
-
-#     def sideMenu(self):
-#         side_menu_container = QWidget(self)
-#         side_menu_container.setFixedWidth(85)
-#         side_menu_container.setStyleSheet("background-color:black;")
-#         side_menu = QtWidgets.QVBoxLayout(side_menu_container)
-#         return side_menu, side_menu_container
-
-#     def mainField(self):
-#         self.main_field_container = QWidget(self)
-#         self.main_field_container.setStyleSheet("background-color: rgba(15, 15, 15, 255);")
-#         self.main_field = QtWidgets.QVBoxLayout(self.main_field_container)
-#         return self.main_field, self.main_field_container
-
-#     def createButton(self, name, icon, function=None, args=None):
-#         b = QtWidgets.QPushButton()
-#         b.setStyleSheet("border: none;")
-#         b.setIcon(QIcon(self.path + icon))
-#         b.setIconSize(QSize(64, 64))
-#         b.setCheckable(True)
-#         b.pressed.connect(lambda:self.pressed(b, name))
-#         b.released.connect(lambda:self.released(b, name))
-
-#         if function is not None:
-#             b.clicked.connect(lambda:function(*args))
-
-#         return b
-
-#     def createButtonLabel(self, label):
-#         l = QLabel(label)
-#         l.setFont(QtGui.QFont("Monospace", 10, QtGui.QFont.Bold))
-#         l.setStyleSheet("color:white;")
-#         l.setAlignment(Qt.AlignCenter)
-#         return l
-
-#     def tickets(self, layout):
-#         tickets, issue_types, summaries, progress = self.hjira.tickets()
-#         for i in range(len(tickets)):
-#             lticket = QLabel(tickets[i])
-#             lticket.setFont(QtGui.QFont("Monospace", 10, QtGui.QFont.Bold))
-#             lticket.setStyleSheet("color:white;")
-#             lticket.setAlignment(Qt.AlignCenter)
-
-#             lissue = QLabel(issue_types[i])
-#             lissue.setFont(QtGui.QFont("Monospace", 10, QtGui.QFont.Bold))
-#             lissue.setStyleSheet("color:white;")
-#             lissue.setAlignment(Qt.AlignCenter)
-
-#             lprogress = QLabel(progress[i])
-#             lprogress.setFont(QtGui.QFont("Monospace", 10, QtGui.QFont.Bold))
-#             lprogress.setStyleSheet("color:white;")
-#             lprogress.setAlignment(Qt.AlignCenter)
-
-#             lsummary = QLabel(summaries[i])
-#             lsummary.setFont(QtGui.QFont("Monospace", 10, QtGui.QFont.Bold))
-#             lsummary.setStyleSheet("color:white;")
-#             lsummary.setAlignment(Qt.AlignCenter)
-
-#             layout.addWidget(lticket, i, 0, Qt.AlignLeft)
-#             layout.addWidget(lissue, i, 1, Qt.AlignLeft)
-#             layout.addWidget(lprogress, i, 2, Qt.AlignLeft)
-#             layout.addWidget(lsummary, i, 3, Qt.AlignLeft)
-
-#     def graph(self):
-#         d = Dialog(self.hjira, "Graph", self.path+"login.png",
-#                        self.path+"cancel.png")
-
-#         if d.accepted:
-#             ticket = d.text()
-#             file_name = self.hjira.graph(ticket)
-#             viewer = PhotoViewer(self)
-#             viewer.setPhoto(QtGui.QPixmap(file_name))
-#             viewer.fitInView()
-#             self.main_field_bottom.addWidget(viewer)
-#         else:
-#             return
-
-#     def pressed(self, b, i):
-#         b.setIcon(QIcon(self.path + i + '_pressed.png'))
-
-#     def released(self, b, i):
-#         b.setIcon(QIcon(self.path + i + '.png'))
-
-#     def login(self):
-#         if not self.hjira.loggedin:
-#             login = Login(self.hjira, self.path+"login.png",
-#                               self.path+"cancel.png", self.path+"checkmark.png")
-#             if login.loginOk():
-#                 self.showTopMenu(self.jira_top_menu)
-
-#     def showTopMenu(self, menu):
-#         self.hideTop()
-#         menu.show()
-
-#     def hideTop(self):
-#         for menu in self.top_menus:
-#             menu.hide()
-
-# class TopMenu(QtWidgets.QWidget):
-#     def __init__(self, spec):
-#         super().__init__()
-#         self.spec = spec
-#         self.buttons = []
-#         self.icon_paths = []
-#         self.initUI()
-
-#     def initUI(self):
-#         self.hide()
-#         self.setStyleSheet("background-color: rgba(31, 60, 81, 255);")
-#         self.setFixedHeight(100)
-#         menu_layout = QtWidgets.QHBoxLayout(self)
-#         menu_layout.setContentsMargins(0,0,0,0)
-#         menu_layout.setSpacing(0)
-
-#         for label, icon_path in self.spec.items():
-#             vbc = QtWidgets.QWidget()
-#             vb = QtWidgets.QVBoxLayout(vbc)
-#             vb.setContentsMargins(0,5,0,0)
-
-#             b = self.createButton(icon_path)
-
-#             l = QLabel(label)
-#             l.setFont(QtGui.QFont("Monospace", 10, QtGui.QFont.Bold))
-#             l.setStyleSheet("color:white;")
-#             l.setAlignment(Qt.AlignCenter)
-
-#             vb.addWidget(b)
-#             vb.addWidget(l)
-#             menu_layout.addWidget(vbc)
-
-#     def pressed(self, b, i):
-#         name = i.split('.',1)
-#         print(name[0] + '_pressed.png')
-#         b.setIcon(QIcon(name[0] + '_pressed.png'))
-
-#     def released(self, b, i):
-#         name = i.split('.',1)
-#         b.setIcon(QIcon(name[0] + '.png'))
-
-#     def createButton(self, icon_path):
-#         b = QtWidgets.QPushButton()
-#         b.setStyleSheet("border: none;")
-#         b.setIcon(QIcon(icon_path))
-#         b.setIconSize(QSize(64, 64))
-#         b.setCheckable(True)
-#         b.pressed.connect(lambda:self.pressed(b, icon_path))
-#         b.released.connect(lambda:self.released(b, icon_path))
-#         self.buttons.append(b)
-
-#         return b
-
-#     def buttons(self):
-#         return self.buttons
+    def buttons(self):
+        return self.buttons
