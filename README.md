@@ -59,7 +59,7 @@ pip install pyreadline requests
 ```
 Run
 ```sh
-$ python <path to hermes>/hermes.py
+python <path to hermes>/hermes.py
 ```
 
 ### Caveat
