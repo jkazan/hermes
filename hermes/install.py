@@ -1,6 +1,6 @@
 import os
 import sys
-from terminal import Write, Color
+from .terminal import Write, Color
 import subprocess
 import re
 import requests

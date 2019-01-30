@@ -11,7 +11,7 @@ import textwrap
 import requests
 
 from collections import OrderedDict
-from terminal import Write
+from .terminal import Write
 
 import inspect
 
