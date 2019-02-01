@@ -37,12 +37,13 @@ class Login(QDialog):
     Clicking on the button results in the start of a timer and
     updates the progress bar.
     """
-    def __init__(self, jira, jira_top_menu):
+    def __init__(self, jira, jira_ui, uis):
         super().__init__()
         self.path = os.path.dirname(os.path.abspath(__file__))+'/imgs/'
         self.movie = QtGui.QMovie(self.path + "loading.gif")
         self.jira = jira
-        self.jira_top_menu = jira_top_menu
+        self.jira_ui = jira_ui
+        self.uis = uis
         self.login_ok = False
 
         self.initUI()
@@ -188,7 +189,7 @@ class Login(QDialog):
             self.l_loading.show()
             self.movie.start()
         else:
-            self.l_title.setStyleSheet("color:red;")
+            self.l_title.setStyleSheet("color:rgba(239, 64, 64, 255);")
             self.movie.stop()
             self.l_loading.hide()
             self.empty.show()
@@ -200,7 +201,7 @@ class Login(QDialog):
                     with open(file_path, 'w') as f:
                         f.write('{"user":"'+self.ef_user.text()+'"}')
                 self.close()
-                self.jira_top_menu.show()
+                self.showMe()
             else:
                 self.l_title.setText("Invalid credentials, try again!")
 
@@ -222,8 +223,10 @@ class Login(QDialog):
         b = self.sender()
         b.setIcon(QtGui.QIcon(icon_path))
 
+    def showMe(self):
+        for ui in self.uis:
+                ui.hide()
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = Login()
-    sys.exit(app.exec_())
+        self.jira_ui.show()
+
+

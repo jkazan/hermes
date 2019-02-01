@@ -3,8 +3,9 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class PhotoViewer(QtWidgets.QGraphicsView):
     photoClicked = QtCore.pyqtSignal(QtCore.QPoint)
 
-    def __init__(self, parent):
+    def __init__(self, parent, size):
         super(PhotoViewer, self).__init__(parent)
+        self.size = size
         self._zoom = 0
         self._empty = True
         self._scene = QtWidgets.QGraphicsScene(self)
@@ -22,18 +23,20 @@ class PhotoViewer(QtWidgets.QGraphicsView):
         return not self._empty
 
     def fitInView(self, scale=True):
-        rect = QtCore.QRectF(self._photo.pixmap().rect())
-        if not rect.isNull():
-            self.setSceneRect(rect)
-            if self.hasPhoto():
-                unity = self.transform().mapRect(QtCore.QRectF(0, 0, 1, 1))
-                self.scale(1 / unity.width(), 1 / unity.height())
-                viewrect = self.viewport().rect()
-                scenerect = self.transform().mapRect(rect)
-                factor = min(viewrect.width() / scenerect.width(),
-                             viewrect.height() / scenerect.height())
-                self.scale(factor, factor)
-            self._zoom = 0
+        pass
+        # self._photo.resize(self.size)
+        # rect = QtCore.QRectF(self._photo.pixmap().rect())
+        # if not rect.isNull():
+        #     self.setSceneRect(rect)
+        #     if self.hasPhoto():
+        #         unity = self.transform().mapRect(QtCore.QRectF(0, 0, 1, 1))
+        #         self.scale(1 / unity.width(), 1 / unity.height())
+        #         viewrect = self.viewport().rect()
+        #         scenerect = self.transform().mapRect(rect)
+        #         factor = min(viewrect.width() / scenerect.width(),
+        #                      viewrect.height() / scenerect.height())
+        #         self.scale(factor, factor)
+        #     self._zoom = 0
 
     def setPhoto(self, pixmap=None):
         self._zoom = 0
