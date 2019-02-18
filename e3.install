@@ -15,14 +15,17 @@ main() {
     cd $E3DIR
 
     # Clone e3
-    sudo -u $SUDO_USER git clone https://github.com/icshwi/e3
+    # sudo -u $SUDO_USER git clone https://github.com/icshwi/e3
+    git clone https://github.com/icshwi/e3
     cd e3/
 
     # Configure for EPICS 7
-    yes Y | sudo -u $SUDO_USER bash e3_building_config.bash -t $E3DIR -b 7.0.1.1 setup
+    # yes Y | sudo -u $SUDO_USER bash e3_building_config.bash -t $E3DIR -b 7.0.1.1 setup
+    yes Y | bash e3_building_config.bash -t $E3DIR -b 7.0.1.1 setup
 
     # Install base within the e3 directory
-    yes Y | sudo -u $SUDO_USER ./e3.bash base
+    # yes Y | sudo -u $SUDO_USER ./e3.bash base
+    yes Y | ./e3.bash base
 
     # Install require within the e3 directory
     ./e3.bash req
@@ -33,7 +36,8 @@ main() {
     cd $E3DIR
 
     # Clone e3-tools
-    sudo -u $SUDO_USER git clone https://github.com/icshwi/e3-tools
+    # sudo -u $SUDO_USER git clone https://github.com/icshwi/e3-tools
+    git clone https://github.com/icshwi/e3-tools
 }
 
 E3DIR=$1

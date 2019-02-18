@@ -1,3 +1,4 @@
+import os
 from PyQt5 import QtWidgets
 from PyQt5 import QtGui
 from PyQt5 import QtCore
@@ -8,7 +9,6 @@ class TopMenu(QtWidgets.QWidget):
         self.spec = spec
         self.__buttons = []
         self.__labels = []
-        self.icon_paths = []
         self.initUI()
         self.setFixedHeight(95)
 
@@ -47,9 +47,11 @@ class TopMenu(QtWidgets.QWidget):
     def getButtons(self):
         return self.__buttons
 
-    def setFontColor(self, color):
+    def setTheme(self, colors):
+        self.setStyleSheet("background-color:"+colors["top"]+";")
+
         for l in self.__labels:
-            l.setStyleSheet("color:"+color+";")
+            l.setStyleSheet("color:"+colors["font"]+";")
 
     def pressed(self, b, p):
         split = p.split(".")
@@ -58,3 +60,5 @@ class TopMenu(QtWidgets.QWidget):
 
     def released(self, b, p):
         b.setIcon(QtGui.QIcon(p))
+
+

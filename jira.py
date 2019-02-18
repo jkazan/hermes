@@ -180,6 +180,8 @@ class HJira(object):
             url, auth=self.auth, headers=self.headers, data=payload.encode('utf8'))
         self.response_ok(response, ticket)
 
+        return response
+
     def response_ok(self, response, ticket=None):
         """Parse Jira response message
 
@@ -210,8 +212,9 @@ class HJira(object):
                 errors = data['errors']['assignee']
                 W().write('{}\n' .format(errors), 'warning')
             elif caller == 'log':
-                errors = data['errors']['timeLogged']
-                W().write('{}\n' .format(errors), 'warning')
+                pass
+                # errors = data['errors']['timeLogged']
+                # W().write('{}\n' .format(errors), 'warning')
         elif response.status_code == 403:
             W().write('Forbidden\nThis may be caused by too many attempts '
                           +'to enter your password. If this is the \n'
@@ -234,7 +237,7 @@ class HJira(object):
         if key is None and target == 'assignee':
             key = self.user
 
-        url = 'https://jira.esss.lu.se/rest/api/2/search?jql='+target+'=' + key
+        url = 'https://jira.esss.lu.se/rest/api/2/search?jql='+target+'=' + key + '&maxResults=999'
         response = requests.get(url, auth=self.auth, headers=self.headers)
         response_ok = self.response_ok(response)
         if response_ok is False:
@@ -471,6 +474,8 @@ class HJira(object):
                                           options['word_wrap'])
         except requests.exceptions.HTTPError:
             W().write('Dang, something went wrong\n', 'warning')
+            self.stop_loading()
+            return None
 
         if options['local']:
             # jira.print_graph(jira.filter_duplicates(graph),

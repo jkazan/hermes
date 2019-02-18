@@ -198,8 +198,16 @@ class Login(QDialog):
                 self.login_ok = True
                 if self.c_remember.isChecked:
                     file_path = os.path.dirname(os.path.abspath(__file__)) + "/jira.user"
+
+                    # Read current data
+                    with open(file_path, 'r') as f:
+                        json_data = json.load(f)
+                        json_data["user"] = self.ef_user.text()
+
+                    # Save our changes to JSON file
                     with open(file_path, 'w') as f:
-                        f.write('{"user":"'+self.ef_user.text()+'"}')
+                        f.write(json.dumps(json_data))
+
                 self.close()
                 self.showMe()
             else:

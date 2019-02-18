@@ -36,4 +36,4 @@ class InstallUI(QtWidgets.QWidget):
         return self.main_fields
 
     def setTheme(self, colors):
-        pass
+        self.top_menu.setTheme(colors)

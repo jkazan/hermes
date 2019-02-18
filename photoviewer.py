@@ -23,20 +23,20 @@ class PhotoViewer(QtWidgets.QGraphicsView):
         return not self._empty
 
     def fitInView(self, scale=True):
-        pass
+        # pass
         # self._photo.resize(self.size)
-        # rect = QtCore.QRectF(self._photo.pixmap().rect())
-        # if not rect.isNull():
-        #     self.setSceneRect(rect)
-        #     if self.hasPhoto():
-        #         unity = self.transform().mapRect(QtCore.QRectF(0, 0, 1, 1))
-        #         self.scale(1 / unity.width(), 1 / unity.height())
-        #         viewrect = self.viewport().rect()
-        #         scenerect = self.transform().mapRect(rect)
-        #         factor = min(viewrect.width() / scenerect.width(),
-        #                      viewrect.height() / scenerect.height())
-        #         self.scale(factor, factor)
-        #     self._zoom = 0
+        rect = QtCore.QRectF(self._photo.pixmap().rect())
+        if not rect.isNull():
+            self.setSceneRect(rect)
+            if self.hasPhoto():
+                unity = self.transform().mapRect(QtCore.QRectF(0, 0, 1, 1))
+                self.scale(1 / unity.width(), 1 / unity.height())
+                viewrect = self.viewport().rect()
+                scenerect = self.transform().mapRect(rect)
+                factor = min(viewrect.width() / scenerect.width(),
+                             viewrect.height() / scenerect.height())
+                self.scale(factor, factor)
+            self._zoom = 0
 
     def setPhoto(self, pixmap=None):
         self._zoom = 0

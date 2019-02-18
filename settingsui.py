@@ -45,6 +45,7 @@ class SettingsUI(QtWidgets.QWidget):
         return self.rb
 
     def setTheme(self, colors):
+        self.top_menu.setTheme(colors)
         self.rb.setStyleSheet("""
             QRadioButton{ color: """+colors["font"]+""";}
 
