@@ -380,8 +380,15 @@ class HJira(object):
                 cols = lines[i].split('|')
                 tickets.append(re.search("ICSHWI(-\d+)?", cols[1]).group(0))
                 comments.append(cols[5])
-                time_list = re.search("\d+:\d+", lines[i]).group(0).split(':')
-                times.append('{}h {}m' .format(time_list[0], time_list[1]))
+                time_list = re.search("\d*d* \d+:\d+", lines[i]).group(0)
+                time_list = re.split(':|d ', time_list)
+
+                if len(time_list) > 2:
+                    times.append('{}d {}h {}m' .format(
+                        time_list[0], time_list[1], time_list[1]))
+                else:
+                    times.append('{}h {}m' .format(time_list[0], time_list[1]))
+
                 W().write('{}\t{}\t{}\n'
                               .format(tickets[-1], times[-1], comments[-1]))
 
