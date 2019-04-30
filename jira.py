@@ -379,7 +379,7 @@ class HJira(object):
                 match_flag = True
                 cols = lines[i].split('|')
                 tickets.append(re.search("ICSHWI(-\d+)?", cols[1]).group(0))
-                comments.append(cols[5])
+                comments.append(cols[5].replace('"', '\\"'))
                 time_list = re.search("\d*d* \d+:\d+", lines[i]).group(0)
                 time_list = re.split(':|d ', time_list)
 
