@@ -3,3 +3,5 @@ __pycache__/
 jira.user
 *.png
 \#*
+hermes.egg-info/
+dist/

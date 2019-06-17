@@ -4,19 +4,18 @@ import sys
 import subprocess
 import readline
 import json
-from terminal import Write as W
+from .terminal import Write as W
 import requests
 import getpass
 import inspect
 import re
 
-from graph import JiraSearch
+from .graph import JiraSearch
 import textwrap
 
 import threading
 import time
 
-import threading
 
 class HJira(object):
 

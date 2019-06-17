@@ -2,9 +2,9 @@ from __future__ import print_function
 import signal
 import os
 import shlex
-from terminal import Write, Color
-from jira import HJira
-from install import HInstall
+from .terminal import Write, Color
+from .jira import HJira
+from .install import HInstall
 
 class CLIReactor(object):
     """Hermes Command Line Interface."""
@@ -153,6 +153,11 @@ class CLIReactor(object):
         slit_args = shlex.split(args, comments, posix)
         return slit_args
 
-if __name__ == '__main__':
+
+def main():
     reactor = CLIReactor()
     reactor.run()
+
+
+if __name__ == '__main__':
+    main()
