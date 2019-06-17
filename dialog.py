@@ -40,7 +40,7 @@ class Login(QDialog):
     def __init__(self, jira, jira_ui, uis):
         super().__init__()
         self.path = os.path.dirname(os.path.abspath(__file__))+'/imgs/'
-        self.movie = QtGui.QMovie(self.path + "loading.gif")
+        self.movie = QtGui.QMovie(self.path + "imgs/loading.gif")
         self.jira = jira
         self.jira_ui = jira_ui
         self.uis = uis
