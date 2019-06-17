@@ -99,6 +99,43 @@ class HJira(object):
         else:
             W().write('Invalid action \'{}\'\n' .format(action), 'warning')
 
+    def subtask(self, parent, summary):
+        # ICSHWI-1391 dummy
+        self.login()
+        if not self.loggedin:
+            return
+
+        url = 'https://jira.esss.lu.se/rest/api/latest/issue/'
+        project = parent.split("-")[0]
+        payload = {
+            "fields":{
+                "project":{"key":project},
+                "parent":{"key": parent},
+                "summary":summary,
+                "description":"Subtask",
+                "assignee":{"name":self.user},
+                "issuetype":{"name": "Sub-task"},
+                # "priority":{"name":"Major"}
+                },
+            "update":{
+                "issuelinks":[{
+                     "add":{
+                         "type":{
+                             "name":"Relates",
+                             "inward":"contains",
+                             "outward":"is part of"
+                            },
+                         "outwardIssue":{"key":parent}
+                        }
+                    }
+                ]
+            }
+        }
+
+        response = requests.post(
+            url, auth=self.auth, headers=self.headers, data=json.dumps(payload))
+        self.response_ok(response)
+
     def comment(self, ticket, comment):
         """Comment on a Jira ticket.
 

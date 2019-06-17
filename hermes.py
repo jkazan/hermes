@@ -30,6 +30,7 @@ class CLIReactor(object):
             "graph"         : self.hjira.graph,
             "log"           : self.hjira.log,
             "org"           : self.hjira.org,
+            "subtask"       : self.hjira.subtask,
             "tickets"       : self.hjira.tickets,
             "username"      : self.hjira.username,
             # INSTALL #####################
@@ -77,6 +78,7 @@ class CLIReactor(object):
         graph_descr = 'Draw relationship graph'
         log_descr = 'Log work to a ticket'
         org_descr = 'Parse emacs org-mode file and log work'
+        subtask_descr = 'Create subtask related to its parent'
         quit_descr = 'Quit Hermes'
         tickets_a_descr = 'List assignee\'s tickets'
         tickets_p_descr = 'List project\'s tickets'
@@ -98,6 +100,7 @@ class CLIReactor(object):
             'graph     <ticket> [box|circle|ellipse]' : graph_descr,
             'log       <ticket> "<time>" "<comment>"' : log_descr,
             'org       <path to .org file>'           : org_descr,
+            'subtask   <parent ticket> "<summary>"'   : subtask_descr,
             'tickets   [<assignee>]'                  : tickets_a_descr,
             '          [<project> project]'           : tickets_p_descr,
             'username  remember | forget'             : username_descr,
