@@ -131,7 +131,6 @@ class HJira(object):
                 ]
             }
         }
-
         response = requests.post(
             url, auth=self.auth, headers=self.headers, data=json.dumps(payload))
         self.response_ok(response)
@@ -252,12 +251,19 @@ class HJira(object):
                 pass
                 # errors = data['errors']['timeLogged']
                 # W().write('{}\n' .format(errors), 'warning')
+            elif caller == 'subtask':
+                errors = data["errors"]
+                W().write('{}\n' .format(errors), 'warning')
+            else:
+                print(data)
         elif response.status_code == 403:
             W().write('Forbidden\nThis may be caused by too many attempts '
                           +'to enter your password. If this is the \n'
                           +'case, visit your jira domain in a browser, logout and login again. This will \n'
                           +'reset the count and Hermes will work once again.\n'
                           , 'warning')
+        else:
+            W().write(response.status_code, warning)
 
         return False
 
@@ -318,9 +324,12 @@ class HJira(object):
 
         for i in range(0, n):
             if issue_types[i] == 'Sub-task':
+                p = issues[i]['fields']['parent']
+                t = p['fields']['issuetype']['name']
+                s = p['fields']['summary']
                 parent_key = issues[i]['fields']['parent']['key']
                 if parent_key not in parent_keys:
-                    parent = [parent_key, 'Unknown', 'Unknown', 'Unknown']
+                    parent = [parent_key, t, '', s]
                     parent_keys.append(parent_key)
                     tree.append((parent,[]))
             else:
