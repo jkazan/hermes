@@ -99,6 +99,43 @@ class HJira(object):
         else:
             W().write('Invalid action \'{}\'\n' .format(action), 'warning')
 
+    def state(self, ticket, state):
+        self.login()
+        if not self.loggedin:
+            return
+
+        state_id = ""
+        if state.lower() == "backlog":
+            state_id = "11"
+        elif state.lower() == "in progress":
+            state_id = "31"
+        elif state.lower() == "implemented":
+            state_id = "51"
+        else:
+            W().write("Invalid state '{}'" .format(state), 'warning')
+            return
+
+
+        url = 'https://jira.esss.lu.se/rest/api/latest/issue/'
+        url += '{}/transitions?expand=transitions.fields' .format(ticket)
+
+        # for state_id in range(32,100):
+        payload = {"transition": {"id": state_id}}
+        response = requests.post(
+            url, auth=self.auth, headers=self.headers, data=json.dumps(payload))
+        # print("{}: {}" .format(state_id, response.status_code))
+        self.response_ok(response)
+
+
+        # payload = {
+        #         "update": {
+        #             "comment": [
+        #                 {"add": {"body": comment}}
+        #                 ]
+        #             },
+        #         "transition": {"id": state}
+        #         }
+
     def subtask(self, parent, summary):
         # ICSHWI-1391 dummy
         self.login()
@@ -236,6 +273,15 @@ class HJira(object):
         elif response.status_code == 201:
             W().write('Successfully posted\n', 'ok')
             return True
+        elif response.status_code == 204:
+            curframe = inspect.currentframe()
+            calframe = inspect.getouterframes(curframe, 2)
+            caller = calframe[1][3]
+            if caller == 'state':
+                W().write('Successfully changed state\n', 'ok')
+                return True
+            else:
+                W().write('204 code, is this correct?', 'warning')
         elif response.status_code == 400 or response.status_code == 404:
             data = response.json()
             curframe = inspect.currentframe()
@@ -263,7 +309,7 @@ class HJira(object):
                           +'reset the count and Hermes will work once again.\n'
                           , 'warning')
         else:
-            W().write(response.status_code, warning)
+            W().write(response.status_code, 'warning')
 
         return False
 
@@ -300,7 +346,7 @@ class HJira(object):
         parent_keys = []
         summaries = []
         tree = []
-        orphanage = ['Orphans', 'None', 'None', 'These children have no epic']
+        orphanage = ['Orphans', '', '', 'These children have no epic']
         has_orphanage = False
 
         # Find all parents
@@ -551,3 +597,6 @@ class HJira(object):
                                   'darwin':'open'}[sys.platform]
         # subprocess.run([imageViewerFromCommandLine, options['image_file']])
         return options['image_file']
+
+
+    # curl -u johanneskazantzidis:Saraeva112 -X POST --data '{"transition": {"id": "11"}}' -H "Content-Type: application/json" https://jira.esss.lu.se/rest/api/latest/issue/ICSHWI-2685/transitions?expand=transitions.fields
