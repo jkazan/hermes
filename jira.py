@@ -274,14 +274,8 @@ class HJira(object):
             W().write('Successfully posted\n', 'ok')
             return True
         elif response.status_code == 204:
-            curframe = inspect.currentframe()
-            calframe = inspect.getouterframes(curframe, 2)
-            caller = calframe[1][3]
-            if caller == 'state':
-                W().write('Successfully changed state\n', 'ok')
-                return True
-            else:
-                W().write('204 code, is this correct?', 'warning')
+            W().write('Success\n', 'ok')
+            return True
         elif response.status_code == 400 or response.status_code == 404:
             data = response.json()
             curframe = inspect.currentframe()
@@ -300,8 +294,8 @@ class HJira(object):
             elif caller == 'subtask':
                 errors = data["errors"]
                 W().write('{}\n' .format(errors), 'warning')
-            else:
-                print(data)
+            # else:
+            #     print(data)
         elif response.status_code == 403:
             W().write('Forbidden\nThis may be caused by too many attempts '
                           +'to enter your password. If this is the \n'
@@ -314,6 +308,127 @@ class HJira(object):
         return False
 
     def tickets(self, key=None, target='assignee'):
+        """Lists all tickets for assigned to a user or project.
+
+        :param key: Name of Jira user or project
+        :param target: 'assignee' or 'project', default is 'assignee'
+        """
+        self.login()
+        if not self.loggedin:
+            return
+
+        if key is None and target == 'assignee':
+            key = self.user
+
+        url = 'https://jira.esss.lu.se/rest/api/2/search?jql='+target+'=' + key + '&maxResults=999'
+        response = requests.get(url, auth=self.auth, headers=self.headers)
+        response_ok = self.response_ok(response)
+        if response_ok is False:
+            return
+
+        data = response.json()
+        issues = data['issues']
+
+        if not issues:
+            W().write('No tickets found for \'{}\' \n' .format(key),'warning')
+            return
+
+        # print(json.dumps(issues, indent=4, separators=(",", ":")))
+        tickets = {}
+        # Find all parents
+        for i in range(0, len(issues)):
+            key = issues[i]['key']
+            fields = issues[i]['fields']
+            tickets[key] = self.makeTicket(key, fields)
+
+        for i in range(0, len(issues)):
+            key = issues[i]['key']
+            if tickets[key]['parent'] is not None:
+                if tickets[key]['parent']['key'] not in tickets:
+                    new_key = tickets[key]['parent']['key']
+                    new_fields = tickets[key]['parent']['fields']
+                    tickets[new_key] = self.makeTicket(new_key, new_fields, True)
+
+        # Print headers
+        W().write('{:<16s}{:<14s}{:<9s}{:<7s}{}\n' .format('Ticket',
+                                                  'Type',
+                                                  'Status',
+                                                  'Prog.',
+                                                  'Summary'), 'header')
+
+        # TODO: slow sorting, fix!
+        for key, data in tickets.items():
+            if data['parent'] is None:
+                W().write('{:<16s}{:<14s}{:<9s}{:<7s}{}\n' .format(key,
+                                                        data['issuetype'],
+                                                        data['status'],
+                                                        data['progress'],
+                                                        data['summary']), 'epic')
+                for k, d in tickets.items():
+                    try:
+                        if d['parent']['key'] == key:
+                            W().write('  {:<14s}{:<14s}{:<9s}{:<7s}{}\n' .format(k,
+                                                        d['issuetype'],
+                                                        d['status'],
+                                                        d['progress'],
+                                                        d['summary']), 'task')
+                    except:
+                        pass
+
+        return tickets
+
+    def makeTicket(self, key, fields, nonOwned=False):
+        ticket = {
+                'summary' : '',
+                'issuetype' : '',
+                'progress' : '',
+                'parent' : '',
+                'status' : '',
+                }
+
+        s = fields['summary']
+        sumlim = 31
+        ticket['summary'] = s[0:sumlim]+'...' if len(s)>sumlim+3 else s
+        ticket['issuetype'] = fields['issuetype']['name']
+        st = fields['status']['name']
+        statlim = 6
+        ticket['status'] = st[0:statlim]+'.' if len(st)>statlim else st
+
+
+        if nonOwned:
+            ticket['parent'] = None
+            return ticket
+
+        try:
+            ticket['progress'] = str(fields['aggregateprogress']['percent']) + '%'
+        except Exception:
+            ticket['progress'] = ''
+
+        try:
+            ticket['parent'] = fields['parent']
+        except:
+            ticket['parent'] = None
+
+        if ticket['parent'] == None:
+            pkey = fields['customfield_10008']
+            if pkey is None:
+                ticket['parent'] = None
+            else:
+                ticket['parent'] = {}
+                ticket['parent']['key'] = pkey
+                ticket['parent']['fields'] = {}
+                ticket['parent']['fields']['issuetype'] = {}
+                ticket['parent']['fields']['issuetype']['name'] = 'Epic'
+                ticket['parent']['fields']['summary'] = 'epic'
+                ticket['parent']['fields']['aggregateprogress'] = {}
+                ticket['parent']['fields']['aggregateprogress']['percent'] = ''
+                ticket['parent']['fields']['status'] = {}
+                ticket['parent']['fields']['status']['name'] = ''
+
+        return ticket
+
+
+    def ticketsold(self, key=None, target='assignee'):
         """Lists all tickets for assigned to a user or project.
 
         :param key: Name of Jira user or project
@@ -399,7 +514,7 @@ class HJira(object):
                         [tickets[i], issue_types[i], progress[i], summaries[i]])
 
         # Print headers
-        W().write('{:<18s}{:<15s}{:<10s}{}\n' .format('Ticket',
+        W().write('{:<16s}{:<15s}{:<10s}{}\n' .format('Ticket',
                                                   'Type',
                                                   'Progress',
                                                   'Summary'), 'header')

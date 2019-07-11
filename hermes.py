@@ -102,8 +102,7 @@ class CLIReactor(object):
             'graph     <ticket> [box|circle|ellipse]' : graph_descr,
             'log       <ticket> "<time>" "<comment>"' : log_descr,
             'org       <path to .org file>'           : org_descr,
-            'state     <ticket>'                      : state_descr,
-            '          "<backlog | in progress | implemented>"':"",
+            'state     <ticket> "<state>"'            : state_descr,
             'subtask   <parent ticket> "<summary>"'   : subtask_descr,
             'tickets   [<assignee>]'                  : tickets_a_descr,
             '          [<project> project]'           : tickets_p_descr,
@@ -158,7 +157,8 @@ class CLIReactor(object):
             args = self.parse(data)
             function(*args)
         except TypeError as type_error:
-            Write().write("{}\n".format(type_error), "warning")
+            pass
+            # Write().write("{}\n".format(type_error), "warning")
 
     def parse(self, args, comments=False, posix=True):
         """Parse command from command line.
