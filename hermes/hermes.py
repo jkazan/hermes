@@ -4,12 +4,9 @@ import os
 import shlex
 from terminal import Write, Color
 from jira import HJira
-# from mainframe import View
 from install import HInstall
 
 import readline
-
-from PyQt5.QtWidgets import QApplication
 
 class CLIReactor(object):
     """Hermes Command Line Interface."""
@@ -173,10 +170,5 @@ class CLIReactor(object):
         return slit_args
 
 if __name__ == '__main__':
-    # app = QApplication([])
-    # mainf = View("dark")
-    # mainf.show()
-    # app.exec_()
-
     reactor = CLIReactor()
     reactor.run()
