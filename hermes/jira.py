@@ -24,6 +24,7 @@ class HJira(object):
         self.headers = {'Content-Type':'application/json'}
         self.stop = False
         self.loggedin = False
+        self.user_file = 'jira_cli.user'
 
     def login(self, user=None, password=None):
         """" Login to Jira account. """
@@ -42,12 +43,12 @@ class HJira(object):
             else:
                 return False
 
-        user_file = 'jira.user'
+        
         script_file = os.path.basename(__file__)
         path = os.path.dirname(os.path.abspath(__file__))
 
-        if os.path.isfile(path+'/'+user_file):
-            with open(path+'/'+user_file, 'r') as f:
+        if os.path.isfile(path+'/'+self.user_file):
+            with open(path+'/'+self.user_file, 'r') as f:
                 json_data = json.load(f)
                 self.user = json_data['user']
         else:
@@ -79,20 +80,14 @@ class HJira(object):
         param action: 'remember' or 'forget' username
         """
         path = os.path.dirname(os.path.abspath(__file__))
-        user_file = 'jira_cli.user'
 
         if action == 'remember':
-            if os.path.isfile(path+'/'+user_file):
-                W().write('{} is already remembered\n'
-                               .format(self.user), 'warning')
-            else:
-                with open(path+'/'+user_file, 'a') as f:
-                    f.write('{"user":"'+user+'"}')
-                    W().write('{} will be remembered\n'
-                                  .format(self.user), 'ok')
+            with open(path+'/'+self.user_file, 'w') as f:
+                f.write('{"user":"'+self.user+'"}')
+                W().write('{} will be remembered\n' .format(self.user), 'ok')
         elif action == 'forget':
-            if os.path.isfile(path+'/'+user_file):
-                os.remove(path+'/'+user_file)
+            if os.path.isfile(path+'/'+self.user_file):
+                os.remove(path+'/'+self.user_file)
                 W().write('{} has been forgotten\n' .format(self.user), 'ok')
             else:
                 W().write('{} was not known\n' .format(self.user), 'warning')
