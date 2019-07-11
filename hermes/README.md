@@ -1,33 +1,14 @@
 # Hermes CLI
-### Running in Python3
-
-### Dependencies
-* requests
-
-### Install on mac
-Install python3 and pip3
+### Install 
 ```sh
-$ brew install python3
-$ brew postinstall python3
-```
-Install package 'requests'
-```sh
-$ sudo pip3 install requests
-```
-
-### Install on ubuntu
-Install python3 and pip3
-```sh
-$ sudo apt-get install python3 python3-pip
-```
-Install package 'requests'
-```sh
-$ sudo pip3 install requests
+git clone https://github.com/jkazan/hermes.git
+cd hermes
+python3 setup.py install
 ```
 
 ### Run
 ```sh
-$ python3 <path to hermes>/hermes.py
+python3 hermes/hermes.py
 ```
 
 ### Caveat
