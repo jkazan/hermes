@@ -117,11 +117,6 @@ class HInstall(object):
                 Write().write('\'{}\' is an invalid option\n' .format(opt), 'warning' )
                 return
 
-            # Check if already installed
-            if os.path.exists(dest+'/cs-studio'):
-                overwrite = input('CSS found in the destination directory. '
-                                   +'Overwrite existing CSS? [Y/n]: ').lower()
-
             url = 'https://artifactory.esss.lu.se/artifactory/CS-Studio/'
             url += opt+'/'
             if opt == 'development':
@@ -142,6 +137,18 @@ class HInstall(object):
             Write().write('{} versions:\n' .format(opt), 'header')
             for v in versions:
                 print(v)
+
+            # Check if already installed
+            if os.path.exists(dest+'/cs-studio'):
+                current_version = ''
+                with open(dest+'/cs-studio/ess-version.txt', 'r') as cv:
+                    current_version = cv.read().rstrip()
+
+                overwrite = input('CSS version '
+                                    + current_version
+                                    + ' found in the destination directory. '
+                                    + 'Overwrite? [Y/n]: ').lower()
+
             version = input('Which version would you like to install? ')
             while version not in pattern.findall(r.text):
                 Write().write('\'{}\' is not a valid version\n'
