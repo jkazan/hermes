@@ -1,6 +1,6 @@
 __pycache__/
 *.pyc
-jira.user
+jira_cli.user
 *.png
 \#*
 .\#*
