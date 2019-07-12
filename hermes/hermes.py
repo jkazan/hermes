@@ -154,8 +154,7 @@ class CLIReactor(object):
             args = self.parse(data)
             function(*args)
         except TypeError as type_error:
-            pass
-            # Write().write("{}\n".format(type_error), "warning")
+            Write().write("{}\n".format(type_error), "warning")
 
     def parse(self, args, comments=False, posix=True):
         """Parse command from command line.
