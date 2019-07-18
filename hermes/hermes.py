@@ -24,12 +24,14 @@ class CLIReactor(object):
             "assign"        : self.hjira.assign,
             "comment"       : self.hjira.comment,
             "comments"      : self.hjira.comments,
+            "email"         : self.hjira.email,
             "graph"         : self.hjira.graph,
             "log"           : self.hjira.log,
             "org"           : self.hjira.org,
             "state"         : self.hjira.state,
             "subtask"       : self.hjira.subtask,
             "tickets"       : self.hjira.tickets,
+            "weekly"        : self.hjira.weekly,
             "username"      : self.hjira.username,
             # INSTALL #####################
             "install"       : self.hinstall.install,
@@ -73,6 +75,7 @@ class CLIReactor(object):
         help_descr = 'List commands (show this message)'
         comment_descr = 'Comment on a ticket'
         comments_descr = 'Get all comments on a ticket'
+        email_descr = 'Send email'
         graph_descr = 'Draw relationship graph'
         log_descr = 'Log work to a ticket'
         org_descr = 'Parse emacs org-mode file and log work'
@@ -82,6 +85,7 @@ class CLIReactor(object):
         tickets_a_descr = 'List assignee\'s tickets'
         tickets_p_descr = 'List project\'s tickets'
         username_descr = 'Remember|forget username'
+        weekly_descr = 'Parse .org file, ouput weekly report'
         install_e3 = 'Install e3 with epics 7 + common mods'
         install_css = 'Install css production|development'
         install_plcf = 'Install plc factory'
@@ -96,6 +100,7 @@ class CLIReactor(object):
             'assign    <ticket> <assignee>'           : assign_descr,
             'comment   <ticket> "<comment>"'          : comment_descr,
             'comments  <ticket>'                      : comments_descr,
+            'email     <to> <subject> <message>'      : email_descr,
             'graph     <ticket> [box|circle|ellipse]' : graph_descr,
             'log       <ticket> "<time>" "<comment>"' : log_descr,
             'org       <path to .org file>'           : org_descr,
@@ -104,6 +109,7 @@ class CLIReactor(object):
             'tickets   [<assignee>]'                  : tickets_a_descr,
             '          [<project> project]'           : tickets_p_descr,
             'username  remember | forget'             : username_descr,
+            'weekly    <path to .org file>'           : weekly_descr,
             'Installation'                            : None,
             'install   e3 <install path>'             : install_e3,
             '          css <install path> [<branch>]' : install_css,
@@ -150,11 +156,11 @@ class CLIReactor(object):
 
         function = self.commands[command]
 
-        try:
-            args = self.parse(data)
-            function(*args)
-        except TypeError as type_error:
-            Write().write("{}\n".format(type_error), "warning")
+        # try:
+        args = self.parse(data)
+        function(*args)
+        # except TypeError as type_error:
+        #     Write().write("{}\n".format(type_error), "warning")
 
     def parse(self, args, comments=False, posix=True):
         """Parse command from command line.

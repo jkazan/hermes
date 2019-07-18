@@ -1,4 +1,5 @@
 from __future__ import print_function
+from bs4 import BeautifulSoup
 import os
 import sys
 import subprocess
@@ -9,6 +10,9 @@ import requests
 import getpass
 import inspect
 import re
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from graph import JiraSearch
 import textwrap
@@ -20,11 +24,66 @@ class HJira(object):
 
     def __init__(self):
         self.user = None
+        self.mailaddress = None
+        self.lm_mailaddress = None
         self.auth = (self.user, None)
         self.headers = {'Content-Type':'application/json'}
         self.stop = False
         self.loggedin = False
         self.user_file = 'jira_cli.user'
+
+        self.store_user()
+
+    def store_user(self):
+        path = os.path.dirname(os.path.abspath(__file__))
+
+        if os.path.isfile(path+'/'+self.user_file):
+            with open(path+'/'+self.user_file, 'r') as fr:
+                json_data = json.load(fr)
+                self.user = json_data['user']
+                self.mailaddress = json_data['email']
+                self.lm_mailaddress = json_data['lm_email']
+        else:
+            first = input("First name: ").lower()
+            last = input("Last name: ").lower()
+            self.user = "{}{}" .format(first, last)
+            self.mailaddress = "{}.{}@esss.se" .format(first, last)
+            lm_first = input("Line manager's first name: ").lower()
+            lm_last = input("Line manager's last name: ").lower()
+            self.lm_mailaddress = "{}.{}@esss.se" .format(lm_first, lm_last)
+
+            with open(path+'/'+self.user_file, 'w') as fw:
+                info = {
+                    "user":self.user,
+                    "email":self.mailaddress,
+                    "lm_email":self.lm_mailaddress,
+                    }
+                fw.write(json.dumps(info, indent=4, separators=(",", ":")))
+
+    def email(self, recipient, subject, body, html=False):
+        self.login()
+        if not self.loggedin:
+            return
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = self.mailaddress
+        msg['To'] = recipient
+
+        if html:
+            body = MIMEText(body, 'html')
+
+        msg.attach(body)
+
+        try:
+            server = smtplib.SMTP('mail.esss.lu.se', 587)
+            server.starttls()
+            server.login(self.user, self.auth[1])
+            server.sendmail(self.mailaddress, recipient, msg.as_string())
+            server.close()
+            W().write('Successfully sent the mail\n', 'ok')
+        except:
+            W().write('Failed to send  mail\n', 'warning')
 
     def login(self, user=None, password=None):
         """" Login to Jira account. """
@@ -32,40 +91,22 @@ class HJira(object):
         if self.loggedin:
             return
 
-        if user is not None: # Gui is running
-            self.user = user
-            self.auth = (self.user, password)
-            url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee=' + self.user
-            response = requests.get(url, auth=self.auth, headers=self.headers)
-            self.loggedin = self.response_ok(response)
-            if self.loggedin:
-                return True
-            else:
-                return False
-
-        
-        script_file = os.path.basename(__file__)
-        path = os.path.dirname(os.path.abspath(__file__))
-
-        if os.path.isfile(path+'/'+self.user_file):
-            with open(path+'/'+self.user_file, 'r') as f:
-                json_data = json.load(f)
-                self.user = json_data['user']
-        else:
-            self.user = input("Jira username: ")
-
-        login_try = 0
-        while login_try < 2:
-            password = getpass.getpass("Password: ")
-            self.auth = (self.user, password)
-            url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee=' + self.user
-            response = requests.get(url, auth=self.auth, headers=self.headers)
-            self.loggedin = self.response_ok(response)
-            if self.loggedin:
-                return
-            else:
-                W().write('try again\n', 'warning')
-                login_try += 1
+        try:
+            login_try = 0
+            while login_try < 2:
+                password = getpass.getpass("Password: ")
+                self.auth = (self.user, password)
+                url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee=' + self.user
+                response = requests.get(url, auth=self.auth, headers=self.headers)
+                self.loggedin = self.response_ok(response)
+                if self.loggedin:
+                    return
+                else:
+                    W().write('try again\n', 'warning')
+                    login_try += 1
+        except Exception as e:
+            W().write(e, 'warning')
+            return False
 
         return
 
@@ -575,13 +616,17 @@ class HJira(object):
         tickets = []
         times = []
         comments = []
-        for i in range(0,len(lines)):
+        i = 0
+        while True:
+            if "#+END: clocktable" in lines[i]:
+                break
+
             match = re.search("^\|[^-][^ Headline][^ \*Total].*ICSHWI", lines[i])
             if match is not None:
                 match_flag = True
                 cols = lines[i].split('|')
                 tickets.append(re.search("ICSHWI(-\d+)?", cols[1]).group(0))
-                comments.append(cols[5].replace('"', '\\"'))
+                comments.append(cols[-2].replace('"', '\\"'))
                 time_list = re.search("\d*d* \d+:\d+", lines[i]).group(0)
                 time_list = re.split(':|d ', time_list)
 
@@ -593,6 +638,8 @@ class HJira(object):
 
                 W().write('{}\t{}\t{}\n'
                               .format(tickets[-1], times[-1], comments[-1]))
+
+            i += 1
 
         if match_flag:
             log = input('Would you like to log this? [Y/n]: ').lower()
@@ -609,6 +656,85 @@ class HJira(object):
         else:
             W().write('No work to log found in {}\n' .format(path), 'warning')
 
+    def weekly(self, path, planned_tickets=None):
+        path = os.path.expanduser(path)
+
+        if not os.path.exists(path):
+            W().write('File \'{}\' does not exist\n' .format(path), 'warning')
+            return
+
+        with open(path) as f:
+            lines = f.readlines()
+
+        achieve_tickets = []
+        achievements = []
+        plans = []
+        email = '<html>'
+        email += '<p>Dear {},</p>' .format(self.lm_mailaddress.split(".")[0].title())
+        email += '<p>Achievements:</p>'
+        email += '<ul>'
+        url = 'https://jira.esss.lu.se/browse'
+        i = 0
+        while True:
+            if "#+END: clocktable" in lines[i]:
+                break
+
+            match = re.search("^\|[^-][^ Headline][^ \*Total].*ICSHWI", lines[i])
+            if match is not None:
+                cols = lines[i].split('|')
+                achieve_tickets.append(
+                    re.search("ICSHWI(-\d+)?", cols[1]).group(0))
+
+            i += 1
+
+        for k in range(i,len(lines)):
+            match = re.search(".*ICSHWI*", lines[k])
+            if match is not None:
+                ticket = re.search("ICSHWI(-\d+)?", lines[k]).group(0)
+                descr = re.search("ICSHWI(-\d+).*", lines[k]).group(0)
+                descr = descr.split(ticket)[1].strip()
+
+                if ticket in achieve_tickets:
+                    weekly_comment = lines[k+3].split(":Weekly:")[1]
+                    achievements.append(
+                        '<li>{}: {} - [<a href="{}/{}">{}</a>]</li>'
+                        . format(descr, weekly_comment, url, ticket, ticket))
+
+                if ticket in planned_tickets:
+                    plans.append(
+                        '<li>{} - [<a href="{}/{}">{}</a>]</li>'
+                        .format(descr, url, ticket, ticket))
+
+        for a in achievements:
+            email += a
+
+        email += '</ul>'
+        email += '<p>Plans for next week:</p>'
+        email += '<ul>'
+
+        for p in plans:
+            email += p
+
+        email += '</ul>'
+        email += '<p>Cheers,<br />Johannes</p>'
+        email += '</html>'
+
+
+        W().write("Preview:\n\n", "warning")
+        soup = BeautifulSoup(email, "lxml").get_text(separator="\n")
+        soup = soup.replace("[\n", "[")
+        soup = soup.replace("\n]", "]")
+        soup = soup.replace("\n -", " -")
+        soup = soup.replace('\n','\n\n')
+        print(soup)
+        W().write('\nWould you like to send this to {}? [Y/n]:'
+                      .format(self.lm_mailaddress), 'task')
+        send = input(' ').lower()
+        if send == "y":
+            self.email(self.mailaddress, "Weekly report", email, html=True)
+        else:
+            return
+# weekly ~/ess/timereport.org "ICSHWI-2851 ICSHWI-2852 ICSHWI-2853"
     def stop_loading(self):
         self.stop = True
         time.sleep(0.3)
