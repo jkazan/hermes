@@ -1,5 +1,6 @@
 from __future__ import print_function
 from bs4 import BeautifulSoup
+from datetime import datetime, timedelta
 import os
 import sys
 import subprocess
@@ -656,17 +657,59 @@ class HJira(object):
         else:
             W().write('No work to log found in {}\n' .format(path), 'warning')
 
-    def weekly(self, path, planned_tickets=None):
-        path = os.path.expanduser(path)
-
-        if not os.path.exists(path):
-            W().write('File \'{}\' does not exist\n' .format(path), 'warning')
+    def weekly(self, planned_tickets, problems=None):
+        self.login()
+        if not self.loggedin:
             return
 
-        with open(path) as f:
-            lines = f.readlines()
+        today = datetime.today()
+        start = today - timedelta(days=today.weekday())
+        start = datetime.combine(start, datetime.min.time())
+        end = start + timedelta(days=6)
+        end = datetime.combine(end, datetime.max.time())
 
-        achieve_tickets = []
+        ticket_url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee={}+order+by+updated&maxResults=20' \
+.format(self.user)
+
+        response = requests.get(ticket_url, auth=self.auth, headers=self.headers)
+        response_ok = self.response_ok(response)
+        if response_ok is False:
+            return
+
+        data = response.json()
+        issues = data['issues']
+
+        if not issues:
+            W().write("No tickets found for '{}' \n" .format(self.user),'warning')
+            return
+
+        report = {}
+        log = []
+        for i in issues:
+            updated = i["fields"]["updated"]
+            date = " ".join(re.split("T|\+", updated)[0:2])
+            date_obj = datetime.strptime(date, '%Y-%m-%d %H:%M:%S.%f')
+
+            if start < date_obj < end:
+                ticket = i["key"]
+                log_url = 'https://jira.esss.lu.se/rest/api/2/issue/{}/worklog' .format(ticket)
+                response = requests.get(log_url, auth=self.auth, headers=self.headers)
+                response_ok = self.response_ok(response)
+                log_data = response.json()
+                worklogs = log_data["worklogs"]
+
+                comment_nbr = 0
+                report[ticket] = {}
+                report[ticket]["description"] = i["fields"]["summary"]
+                report[ticket]["comment"] = []
+                for w in worklogs:
+                    updated = w["updated"]
+                    date = " ".join(re.split("T|\+", updated)[0:2])
+                    date_obj = datetime.strptime(date, '%Y-%m-%d %H:%M:%S.%f')
+
+                    if start < date_obj < end:
+                        report[ticket]["comment"].append(w["comment"])
+
         achievements = []
         plans = []
         email = '<html>'
@@ -674,44 +717,38 @@ class HJira(object):
         email += '<p>Achievements:</p>'
         email += '<ul>'
         url = 'https://jira.esss.lu.se/browse'
-        i = 0
-        while True:
-            if "#+END: clocktable" in lines[i]:
-                break
 
-            match = re.search("^\|[^-][^ Headline][^ \*Total].*ICSHWI", lines[i])
-            if match is not None:
-                cols = lines[i].split('|')
-                achieve_tickets.append(
-                    re.search("ICSHWI(-\d+)?", cols[1]).group(0))
+        for ticket, data in report.items():
+            achievements.append('<li>{}: {} - [<a href="{}/{}">{}</a>]</li>'
+                                    .format(data["description"],
+                                            ". ".join(data["comment"]),
+                                            url, ticket, ticket))
 
-            i += 1
-
-        for k in range(i,len(lines)):
-            match = re.search(".*ICSHWI*", lines[k])
-            if match is not None:
-                ticket = re.search("ICSHWI(-\d+)?", lines[k]).group(0)
-                descr = re.search("ICSHWI(-\d+).*", lines[k]).group(0)
-                descr = descr.split(ticket)[1].strip()
-
-                if ticket in achieve_tickets:
-                    weekly_comment = lines[k+3].split(":Weekly:")[1]
-                    achievements.append(
-                        '<li>{}: {} - [<a href="{}/{}">{}</a>]</li>'
-                        . format(descr, weekly_comment, url, ticket, ticket))
-
-                if ticket in planned_tickets:
-                    plans.append(
-                        '<li>{} - [<a href="{}/{}">{}</a>]</li>'
+        for ticket in planned_tickets.split():
+            url = 'https://jira.esss.lu.se/rest/api/2/issue/{}' .format(ticket)
+            response = requests.get(url, auth=self.auth, headers=self.headers)
+            response_ok = self.response_ok(response)
+            planned_data = response.json()
+            descr = planned_data["fields"]["summary"]
+            plans.append('<li>{} - [<a href="{}/{}">{}</a>]</li>'
                         .format(descr, url, ticket, ticket))
+
+
 
         for a in achievements:
             email += a
 
+        if problems is not None:
+            email += '</ul>'
+            email += '<p>Issues:</p>'
+            email += '<ul>'
+            problems = problems.split("| ")
+            for p in problems:
+                email += '<li>{}</li>'.format(p)
+
         email += '</ul>'
         email += '<p>Plans for next week:</p>'
         email += '<ul>'
-
         for p in plans:
             email += p
 
@@ -734,7 +771,172 @@ class HJira(object):
             self.email(self.mailaddress, "Weekly report", email, html=True)
         else:
             return
-# weekly ~/ess/timereport.org "ICSHWI-2851 ICSHWI-2852 ICSHWI-2853"
+
+
+        # i = 0
+        # while True:
+        #     if "#+END: clocktable" in lines[i]:
+        #         break
+
+        #     match = re.search("^\|[^-][^ Headline][^ \*Total].*ICSHWI", lines[i])
+        #     if match is not None:
+        #         cols = lines[i].split('|')
+        #         achieve_tickets.append(
+        #             re.search("ICSHWI(-\d+)?", cols[1]).group(0))
+
+        #     i += 1
+
+        # for k in range(i,len(lines)):
+        #     match = re.search(".*ICSHWI*", lines[k])
+        #     if match is not None:
+        #         ticket = re.search("ICSHWI(-\d+)?", lines[k]).group(0)
+        #         descr = re.search("ICSHWI(-\d+).*", lines[k]).group(0)
+        #         descr = descr.split(ticket)[1].strip()
+
+        #         if ticket in achieve_tickets:
+        #             weekly_comment = lines[k+3].split(":Weekly:")[1]
+        #             achievements.append(
+        #                 '<li>{}: {} - [<a href="{}/{}">{}</a>]</li>'
+        #                 .format(descr, weekly_comment, url, ticket, ticket))
+
+        #         if ticket in planned_tickets:
+        #             plans.append(
+        #                 '<li>{} - [<a href="{}/{}">{}</a>]</li>'
+        #                 .format(descr, url, ticket, ticket))
+
+        # for a in achievements:
+        #     email += a
+
+        # if issues is not None:
+        #     email += '</ul>'
+        #     email += '<p>Issues:</p>'
+        #     email += '<ul>'
+        #     issues = issues.split("|")
+        #     for i in issues:
+        #         email += '<li>{}</li>'.format(i)
+
+        # email += '</ul>'
+
+        # email += '</ul>'
+        # email += '<p>Plans for next week:</p>'
+        # email += '<ul>'
+        # for p in plans:
+        #     email += p
+
+        # email += '</ul>'
+        # email += '<p>Cheers,<br />Johannes</p>'
+        # email += '</html>'
+
+
+        # W().write("Preview:\n\n", "warning")
+        # soup = BeautifulSoup(email, "lxml").get_text(separator="\n")
+        # soup = soup.replace("[\n", "[")
+        # soup = soup.replace("\n]", "]")
+        # soup = soup.replace("\n -", " -")
+        # soup = soup.replace('\n','\n\n')
+        # print(soup)
+        # W().write('\nWould you like to send this to {}? [Y/n]:'
+        #               .format(self.lm_mailaddress), 'task')
+        # send = input(' ').lower()
+        # if send == "y":
+        #     self.email(self.mailaddress, "Weekly report", email, html=True)
+        # else:
+        #     return
+
+
+
+
+
+        # print(json.dumps(report, indent=4, separators=(",", ":")))
+
+# -------------------------------------------------------------------------
+        # path = os.path.expanduser(path)
+
+        # if not os.path.exists(path):
+        #     W().write('File \'{}\' does not exist\n' .format(path), 'warning')
+        #     return
+
+        # with open(path) as f:
+        #     lines = f.readlines()
+
+        # achieve_tickets = []
+        # achievements = []
+        # plans = []
+        # email = '<html>'
+        # email += '<p>Dear {},</p>' .format(self.lm_mailaddress.split(".")[0].title())
+        # email += '<p>Achievements:</p>'
+        # email += '<ul>'
+        # url = 'https://jira.esss.lu.se/browse'
+        # i = 0
+        # while True:
+        #     if "#+END: clocktable" in lines[i]:
+        #         break
+
+        #     match = re.search("^\|[^-][^ Headline][^ \*Total].*ICSHWI", lines[i])
+        #     if match is not None:
+        #         cols = lines[i].split('|')
+        #         achieve_tickets.append(
+        #             re.search("ICSHWI(-\d+)?", cols[1]).group(0))
+
+        #     i += 1
+
+        # for k in range(i,len(lines)):
+        #     match = re.search(".*ICSHWI*", lines[k])
+        #     if match is not None:
+        #         ticket = re.search("ICSHWI(-\d+)?", lines[k]).group(0)
+        #         descr = re.search("ICSHWI(-\d+).*", lines[k]).group(0)
+        #         descr = descr.split(ticket)[1].strip()
+
+        #         if ticket in achieve_tickets:
+        #             weekly_comment = lines[k+3].split(":Weekly:")[1]
+        #             achievements.append(
+        #                 '<li>{}: {} - [<a href="{}/{}">{}</a>]</li>'
+        #                 .format(descr, weekly_comment, url, ticket, ticket))
+
+        #         if ticket in planned_tickets:
+        #             plans.append(
+        #                 '<li>{} - [<a href="{}/{}">{}</a>]</li>'
+        #                 .format(descr, url, ticket, ticket))
+
+        # for a in achievements:
+        #     email += a
+
+        # if issues is not None:
+        #     email += '</ul>'
+        #     email += '<p>Issues:</p>'
+        #     email += '<ul>'
+        #     issues = issues.split("|")
+        #     for i in issues:
+        #         email += '<li>{}</li>'.format(i)
+
+        # email += '</ul>'
+
+        # email += '</ul>'
+        # email += '<p>Plans for next week:</p>'
+        # email += '<ul>'
+        # for p in plans:
+        #     email += p
+
+        # email += '</ul>'
+        # email += '<p>Cheers,<br />Johannes</p>'
+        # email += '</html>'
+
+
+        # W().write("Preview:\n\n", "warning")
+        # soup = BeautifulSoup(email, "lxml").get_text(separator="\n")
+        # soup = soup.replace("[\n", "[")
+        # soup = soup.replace("\n]", "]")
+        # soup = soup.replace("\n -", " -")
+        # soup = soup.replace('\n','\n\n')
+        # print(soup)
+        # W().write('\nWould you like to send this to {}? [Y/n]:'
+        #               .format(self.lm_mailaddress), 'task')
+        # send = input(' ').lower()
+        # if send == "y":
+        #     self.email(self.mailaddress, "Weekly report", email, html=True)
+        # else:
+        #     return
+
     def stop_loading(self):
         self.stop = True
         time.sleep(0.3)
