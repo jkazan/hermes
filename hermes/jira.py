@@ -769,9 +769,6 @@ class HJira(object):
 
         email += '</ul>'
         email += '<p>Cheers,<br />Johannes</p>'
-        email += '<p><br /><br /><br />'
-        email += '(This message is automatically generated. '
-        email += 'Contact me if anything looks strange.)</p>'
         email += '</html>'
 
         # W().write("Preview:\n\n", "warning")
