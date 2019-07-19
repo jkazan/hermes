@@ -689,7 +689,7 @@ class HJira(object):
             updated = i["fields"]["updated"]
             date = " ".join(re.split("T|\+", updated)[0:2])
             date_obj = datetime.strptime(date, '%Y-%m-%d %H:%M:%S.%f')
-
+            has_work = False
             if start < date_obj < end:
                 ticket = i["key"]
                 log_url = 'https://jira.esss.lu.se/rest/api/2/issue/{}/worklog' .format(ticket)
@@ -699,16 +699,22 @@ class HJira(object):
                 worklogs = log_data["worklogs"]
 
                 comment_nbr = 0
-                report[ticket] = {}
-                report[ticket]["description"] = i["fields"]["summary"]
-                report[ticket]["comment"] = []
+                comments = []
                 for w in worklogs:
+                    print(json.dumps(w, indent=4, separators=(",", ":")))
+                    return
                     updated = w["updated"]
                     date = " ".join(re.split("T|\+", updated)[0:2])
                     date_obj = datetime.strptime(date, '%Y-%m-%d %H:%M:%S.%f')
 
                     if start < date_obj < end:
-                        report[ticket]["comment"].append(w["comment"])
+                        has_work = True
+                        comments.append(w["comment"])
+
+            if has_work:
+                report[ticket] = {}
+                report[ticket]["description"] = i["fields"]["summary"]
+                report[ticket]["comment"] = comments
 
         achievements = []
         plans = []
@@ -728,10 +734,13 @@ class HJira(object):
             url = 'https://jira.esss.lu.se/rest/api/2/issue/{}' .format(ticket)
             response = requests.get(url, auth=self.auth, headers=self.headers)
             response_ok = self.response_ok(response)
-            planned_data = response.json()
-            descr = planned_data["fields"]["summary"]
-            plans.append('<li>{} - [<a href="{}/{}">{}</a>]</li>'
-                        .format(descr, url, ticket, ticket))
+            if response_ok:
+                planned_data = response.json()
+                descr = planned_data["fields"]["summary"]
+                plans.append('<li>{} - [<a href="{}/{}">{}</a>]</li>'
+                            .format(descr, url, ticket, ticket))
+            else:
+                W().write("{} was not found\n\n" .format(ticket), "warning")
 
 
 
@@ -754,6 +763,7 @@ class HJira(object):
 
         email += '</ul>'
         email += '<p>Cheers,<br />Johannes</p>'
+        email += '<p><br /><br /><br />(This message is automatically generated. Contact me if anything looks strange.)</p>'
         email += '</html>'
 
 
@@ -765,7 +775,7 @@ class HJira(object):
         soup = soup.replace('\n','\n\n')
         print(soup)
         W().write('\nWould you like to send this to {}? [Y/n]:'
-                      .format(self.lm_mailaddress), 'task')
+                      .format(self.mailaddress), 'task')
         send = input(' ').lower()
         if send == "y":
             self.email(self.mailaddress, "Weekly report", email, html=True)
