@@ -29,7 +29,7 @@ class HJira(object):
         self.lm_mailaddress = None
         self.auth = (self.user, None)
         self.headers = {'Content-Type':'application/json'}
-        self.stop = False
+        self.stoprog = False
         self.loggedin = False
         self.user_file = 'jira_cli.user'
 
@@ -365,6 +365,29 @@ class HJira(object):
 
         data = response.json()
         issues = data['issues']
+
+        if self.user == "marinovojneski": #TODO: this was a quick fix for Marino
+            for i in issues:
+                statlim = 6
+                st = i['fields']['status']['name']
+                status = st[0:statlim]+'.' if len(st)>statlim else st
+
+                try:
+                    prog = str(i['fields']['aggregateprogress']['percent']) + '%'
+                except:
+                    prog = ""
+
+                s = i['fields']['summary']
+                sumlim = 31
+                summary = s[0:sumlim]+'...' if len(s)>sumlim+3 else s
+
+                W().write('{:<16s}{:<14s}{:<9s}{:<7s}{}\n'
+                            .format(i['key'],
+                                        i['fields']['issuetype']['name'],
+                                        status,
+                                        prog,
+                                        summary))
+            return
 
         if not issues:
             W().write('No tickets found for \'{}\' \n' .format(key),'warning')
@@ -726,7 +749,7 @@ class HJira(object):
             comment = ""
             for c in data["comment"]:
                 comment += c.strip()
-                if comment[-1] != ".":
+                if comment and comment[-1] != ".":
                     comment += ". "
                 else:
                     comment += " "
