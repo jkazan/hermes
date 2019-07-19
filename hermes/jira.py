@@ -1,5 +1,5 @@
 from __future__ import print_function
-from bs4 import BeautifulSoup
+# from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import os
 import sys
@@ -82,7 +82,7 @@ class HJira(object):
             server.login(self.user, self.auth[1])
             server.sendmail(self.mailaddress, recipient, msg.as_string())
             server.close()
-            W().write('Successfully sent the mail\n', 'ok')
+            W().write('Check your email ;)\n', 'ok')
         except:
             W().write('Failed to send  mail\n', 'warning')
 
@@ -701,8 +701,6 @@ class HJira(object):
                 comment_nbr = 0
                 comments = []
                 for w in worklogs:
-                    print(json.dumps(w, indent=4, separators=(",", ":")))
-                    return
                     updated = w["updated"]
                     date = " ".join(re.split("T|\+", updated)[0:2])
                     date_obj = datetime.strptime(date, '%Y-%m-%d %H:%M:%S.%f')
@@ -725,9 +723,17 @@ class HJira(object):
         url = 'https://jira.esss.lu.se/browse'
 
         for ticket, data in report.items():
+            comment = ""
+            for c in data["comment"]:
+                comment += c.strip()
+                if comment[-1] != ".":
+                    comment += ". "
+                else:
+                    comment += " "
+
             achievements.append('<li>{}: {} - [<a href="{}/{}">{}</a>]</li>'
                                     .format(data["description"],
-                                            ". ".join(data["comment"]),
+                                            comment,
                                             url, ticket, ticket))
 
         for ticket in planned_tickets.split():
@@ -763,81 +769,11 @@ class HJira(object):
 
         email += '</ul>'
         email += '<p>Cheers,<br />Johannes</p>'
-        email += '<p><br /><br /><br />(This message is automatically generated. Contact me if anything looks strange.)</p>'
+        email += '<p><br /><br /><br />'
+        email += '(This message is automatically generated. '
+        email += 'Contact me if anything looks strange.)</p>'
         email += '</html>'
 
-
-        W().write("Preview:\n\n", "warning")
-        soup = BeautifulSoup(email, "lxml").get_text(separator="\n")
-        soup = soup.replace("[\n", "[")
-        soup = soup.replace("\n]", "]")
-        soup = soup.replace("\n -", " -")
-        soup = soup.replace('\n','\n\n')
-        print(soup)
-        W().write('\nWould you like to send this to {}? [Y/n]:'
-                      .format(self.mailaddress), 'task')
-        send = input(' ').lower()
-        if send == "y":
-            self.email(self.mailaddress, "Weekly report", email, html=True)
-        else:
-            return
-
-
-        # i = 0
-        # while True:
-        #     if "#+END: clocktable" in lines[i]:
-        #         break
-
-        #     match = re.search("^\|[^-][^ Headline][^ \*Total].*ICSHWI", lines[i])
-        #     if match is not None:
-        #         cols = lines[i].split('|')
-        #         achieve_tickets.append(
-        #             re.search("ICSHWI(-\d+)?", cols[1]).group(0))
-
-        #     i += 1
-
-        # for k in range(i,len(lines)):
-        #     match = re.search(".*ICSHWI*", lines[k])
-        #     if match is not None:
-        #         ticket = re.search("ICSHWI(-\d+)?", lines[k]).group(0)
-        #         descr = re.search("ICSHWI(-\d+).*", lines[k]).group(0)
-        #         descr = descr.split(ticket)[1].strip()
-
-        #         if ticket in achieve_tickets:
-        #             weekly_comment = lines[k+3].split(":Weekly:")[1]
-        #             achievements.append(
-        #                 '<li>{}: {} - [<a href="{}/{}">{}</a>]</li>'
-        #                 .format(descr, weekly_comment, url, ticket, ticket))
-
-        #         if ticket in planned_tickets:
-        #             plans.append(
-        #                 '<li>{} - [<a href="{}/{}">{}</a>]</li>'
-        #                 .format(descr, url, ticket, ticket))
-
-        # for a in achievements:
-        #     email += a
-
-        # if issues is not None:
-        #     email += '</ul>'
-        #     email += '<p>Issues:</p>'
-        #     email += '<ul>'
-        #     issues = issues.split("|")
-        #     for i in issues:
-        #         email += '<li>{}</li>'.format(i)
-
-        # email += '</ul>'
-
-        # email += '</ul>'
-        # email += '<p>Plans for next week:</p>'
-        # email += '<ul>'
-        # for p in plans:
-        #     email += p
-
-        # email += '</ul>'
-        # email += '<p>Cheers,<br />Johannes</p>'
-        # email += '</html>'
-
-
         # W().write("Preview:\n\n", "warning")
         # soup = BeautifulSoup(email, "lxml").get_text(separator="\n")
         # soup = soup.replace("[\n", "[")
@@ -846,104 +782,10 @@ class HJira(object):
         # soup = soup.replace('\n','\n\n')
         # print(soup)
         # W().write('\nWould you like to send this to {}? [Y/n]:'
-        #               .format(self.lm_mailaddress), 'task')
+        #               .format(self.mailaddress), 'task')
         # send = input(' ').lower()
         # if send == "y":
-        #     self.email(self.mailaddress, "Weekly report", email, html=True)
-        # else:
-        #     return
-
-
-
-
-
-        # print(json.dumps(report, indent=4, separators=(",", ":")))
-
-# -------------------------------------------------------------------------
-        # path = os.path.expanduser(path)
-
-        # if not os.path.exists(path):
-        #     W().write('File \'{}\' does not exist\n' .format(path), 'warning')
-        #     return
-
-        # with open(path) as f:
-        #     lines = f.readlines()
-
-        # achieve_tickets = []
-        # achievements = []
-        # plans = []
-        # email = '<html>'
-        # email += '<p>Dear {},</p>' .format(self.lm_mailaddress.split(".")[0].title())
-        # email += '<p>Achievements:</p>'
-        # email += '<ul>'
-        # url = 'https://jira.esss.lu.se/browse'
-        # i = 0
-        # while True:
-        #     if "#+END: clocktable" in lines[i]:
-        #         break
-
-        #     match = re.search("^\|[^-][^ Headline][^ \*Total].*ICSHWI", lines[i])
-        #     if match is not None:
-        #         cols = lines[i].split('|')
-        #         achieve_tickets.append(
-        #             re.search("ICSHWI(-\d+)?", cols[1]).group(0))
-
-        #     i += 1
-
-        # for k in range(i,len(lines)):
-        #     match = re.search(".*ICSHWI*", lines[k])
-        #     if match is not None:
-        #         ticket = re.search("ICSHWI(-\d+)?", lines[k]).group(0)
-        #         descr = re.search("ICSHWI(-\d+).*", lines[k]).group(0)
-        #         descr = descr.split(ticket)[1].strip()
-
-        #         if ticket in achieve_tickets:
-        #             weekly_comment = lines[k+3].split(":Weekly:")[1]
-        #             achievements.append(
-        #                 '<li>{}: {} - [<a href="{}/{}">{}</a>]</li>'
-        #                 .format(descr, weekly_comment, url, ticket, ticket))
-
-        #         if ticket in planned_tickets:
-        #             plans.append(
-        #                 '<li>{} - [<a href="{}/{}">{}</a>]</li>'
-        #                 .format(descr, url, ticket, ticket))
-
-        # for a in achievements:
-        #     email += a
-
-        # if issues is not None:
-        #     email += '</ul>'
-        #     email += '<p>Issues:</p>'
-        #     email += '<ul>'
-        #     issues = issues.split("|")
-        #     for i in issues:
-        #         email += '<li>{}</li>'.format(i)
-
-        # email += '</ul>'
-
-        # email += '</ul>'
-        # email += '<p>Plans for next week:</p>'
-        # email += '<ul>'
-        # for p in plans:
-        #     email += p
-
-        # email += '</ul>'
-        # email += '<p>Cheers,<br />Johannes</p>'
-        # email += '</html>'
-
-
-        # W().write("Preview:\n\n", "warning")
-        # soup = BeautifulSoup(email, "lxml").get_text(separator="\n")
-        # soup = soup.replace("[\n", "[")
-        # soup = soup.replace("\n]", "]")
-        # soup = soup.replace("\n -", " -")
-        # soup = soup.replace('\n','\n\n')
-        # print(soup)
-        # W().write('\nWould you like to send this to {}? [Y/n]:'
-        #               .format(self.lm_mailaddress), 'task')
-        # send = input(' ').lower()
-        # if send == "y":
-        #     self.email(self.mailaddress, "Weekly report", email, html=True)
+        self.email(self.mailaddress, "Weekly report", email, html=True)
         # else:
         #     return
 
