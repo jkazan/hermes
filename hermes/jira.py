@@ -173,8 +173,7 @@ class HJira(object):
         #         "transition": {"id": state}
         #         }
 
-    def subtask(self, parent, summary):
-        # ICSHWI-1391 dummy
+    def subtask(self, parent, summary, effort):
         self.login()
         if not self.loggedin:
             return
@@ -189,6 +188,10 @@ class HJira(object):
                 "description":"Subtask",
                 "assignee":{"name":self.user},
                 "issuetype":{"name": "Sub-task"},
+                "timetracking":{
+                    "originalEstimate": effort,
+                    "remainingEstimate": effort,
+                    }
                 # "priority":{"name":"Major"}
                 },
             "update":{
@@ -340,7 +343,7 @@ class HJira(object):
                           +'reset the count and Hermes will work once again.\n'
                           , 'warning')
         else:
-            W().write(response.status_code, 'warning')
+            W().write(str(response.status_code)+"\n", 'warning')
 
         return False
 
@@ -365,6 +368,7 @@ class HJira(object):
 
         data = response.json()
         issues = data['issues']
+        print(json.dumps(issues[0], indent=4, separators=(",", ":")))
 
         if self.user == "marinovojneski": #TODO: this was a quick fix for Marino
             for i in issues:
@@ -393,7 +397,6 @@ class HJira(object):
             W().write('No tickets found for \'{}\' \n' .format(key),'warning')
             return
 
-        # print(json.dumps(issues, indent=4, separators=(",", ":")))
         tickets = {}
         # Find all parents
         for i in range(0, len(issues)):
@@ -680,7 +683,7 @@ class HJira(object):
         else:
             W().write('No work to log found in {}\n' .format(path), 'warning')
 
-    def weekly(self, planned_tickets, problems=None):
+    def weekly(self, planned_tickets=None, problems=None):
         self.login()
         if not self.loggedin:
             return
@@ -759,20 +762,6 @@ class HJira(object):
                                             comment,
                                             url, ticket, ticket))
 
-        for ticket in planned_tickets.split():
-            url = 'https://jira.esss.lu.se/rest/api/2/issue/{}' .format(ticket)
-            response = requests.get(url, auth=self.auth, headers=self.headers)
-            response_ok = self.response_ok(response)
-            if response_ok:
-                planned_data = response.json()
-                descr = planned_data["fields"]["summary"]
-                plans.append('<li>{} - [<a href="{}/{}">{}</a>]</li>'
-                            .format(descr, url, ticket, ticket))
-            else:
-                W().write("{} was not found\n\n" .format(ticket), "warning")
-
-
-
         for a in achievements:
             email += a
 
@@ -784,11 +773,25 @@ class HJira(object):
             for p in problems:
                 email += '<li>{}</li>'.format(p)
 
-        email += '</ul>'
-        email += '<p>Plans for next week:</p>'
-        email += '<ul>'
-        for p in plans:
-            email += p
+
+        if planned_tickets is not None:
+            for ticket in planned_tickets.split():
+                url = 'https://jira.esss.lu.se/rest/api/2/issue/{}' .format(ticket)
+                response = requests.get(url, auth=self.auth, headers=self.headers)
+                response_ok = self.response_ok(response)
+                if response_ok:
+                    planned_data = response.json()
+                    descr = planned_data["fields"]["summary"]
+                    plans.append('<li>{} - [<a href="{}/{}">{}</a>]</li>'
+                                .format(descr, url, ticket, ticket))
+                else:
+                    W().write("{} was not found\n\n" .format(ticket), "warning")
+
+            email += '</ul>'
+            email += '<p>Plans for next week:</p>'
+            email += '<ul>'
+            for p in plans:
+                email += p
 
         email += '</ul>'
         email += '<p>Cheers,<br />Johannes</p>'
