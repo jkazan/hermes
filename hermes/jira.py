@@ -794,7 +794,9 @@ class HJira(object):
                 email += p
 
         email += '</ul>'
-        email += '<p>Cheers,<br />Johannes</p>'
+        email += '<p>Cheers,<br />'
+        email += self.mailaddress.split(".")[0].capitalize()
+        email += '</p>'
         email += '</html>'
 
         # W().write("Preview:\n\n", "warning")
