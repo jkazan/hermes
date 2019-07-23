@@ -69,4 +69,4 @@ class Write(object):
         :param string: String to print
         :param color: Font color, default is 'regular'
         """
-        sys.stdout.write(self.colors[color](string))
+        sys.stdout.write(self.colors[color](str(string)))
