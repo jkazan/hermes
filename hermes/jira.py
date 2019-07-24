@@ -746,8 +746,8 @@ class HJira(object):
             date = " ".join(re.split("T|\+", updated)[0:2])
             date_obj = datetime.strptime(date, '%Y-%m-%d %H:%M:%S.%f')
             has_work = False
+            ticket = i["key"]
             if start < date_obj < end:
-                ticket = i["key"]
                 log_url = 'https://jira.esss.lu.se/rest/api/2/issue/{}/worklog' .format(ticket)
                 response = requests.get(log_url, auth=self.auth, headers=self.headers)
                 response_ok = self.response_ok(response)
@@ -763,34 +763,64 @@ class HJira(object):
 
                     if start < date_obj < end:
                         has_work = True
-                        comments.append(w["comment"])
+                        comments.append(w["comment"].strip().replace(".", ""))
 
             if has_work:
-                report[ticket] = {}
-                report[ticket]["description"] = i["fields"]["summary"]
-                report[ticket]["comment"] = comments
+                meta = 'https://jira.esss.lu.se/rest/api/2/issue/'+ticket
+                response = requests.get(meta, auth=self.auth, headers=self.headers)
+                meta_data = response.json()
+                try:
+                    parent = meta_data["fields"]["parent"]
+                    parent_key = parent["key"]
+                    parent_summary = parent["fields"]["summary"]
+                except:
+                    parent_key = "orphan"
+                    parent_summary = ""
+
+                if parent_key not in list(report.keys()):
+                    report[parent_key] = {}
+                    report[parent_key]["description"] = parent_summary
+                    report[parent_key]["children"] = {}
+
+                report[parent_key]["children"][ticket] = {}
+                report[parent_key]["children"][ticket]["description"] = i["fields"]["summary"]
+                report[parent_key]["children"][ticket]["comment"] = comments
+        # print(json.dumps(report, indent=4, separators=(",", ":")))
+
+        # If a parent to a ticket is also in orphan, remove it from orphan
+        for p in report:
+            if p in report["orphan"]["children"]:
+                report["orphan"]["children"].pop(p, None)
 
         achievements = []
-        plans = []
+        url = 'https://jira.esss.lu.se/browse'
+        for parent, parent_data in report.items():
+            if parent != "orphan":
+                achievements.append('<li>{} - [<a href="{}/{}">{}</a>]</li><ul>'
+                                        .format(report[parent]["description"],
+                                                    url, parent, parent))
+
+            for ticket, data in report[parent]["children"].items():
+                comment = ""
+                for c in data["comment"]:
+                    if c.strip():
+                        comment += c.strip().replace(".", "")+". "
+                if comment:
+                    comment = ": " + comment
+
+                achievements.append('<li>{}{} - [<a href="{}/{}">{}</a>]</li>'
+                                        .format(data["description"],
+                                                comment,
+                                                url, ticket, ticket))
+
+            if parent != "orphan":
+                last_entry = achievements[-1] + "</ul>"
+                achievements[-1] = last_entry
+
         email = '<html>'
         email += '<p>Dear {},</p>' .format(self.lm_mailaddress.split(".")[0].title())
         email += '<p>Achievements:</p>'
         email += '<ul>'
-        url = 'https://jira.esss.lu.se/browse'
-
-        for ticket, data in report.items():
-            comment = ""
-            for c in data["comment"]:
-                comment += c.strip()
-                if comment and comment[-1] != ".":
-                    comment += ". "
-                else:
-                    comment += " "
-
-            achievements.append('<li>{}: {} - [<a href="{}/{}">{}</a>]</li>'
-                                    .format(data["description"],
-                                            comment,
-                                            url, ticket, ticket))
 
         for a in achievements:
             email += a
@@ -803,7 +833,7 @@ class HJira(object):
             for p in problems:
                 email += '<li>{}</li>'.format(p)
 
-
+        plans = []
         if planned_tickets is not None:
             for ticket in planned_tickets.split():
                 url = 'https://jira.esss.lu.se/rest/api/2/issue/{}' .format(ticket)
