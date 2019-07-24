@@ -173,6 +173,28 @@ class HJira(object):
         #         "transition": {"id": state}
         #         }
 
+    def task(self, summary, description=""):
+        self.login()
+        if not self.loggedin:
+            return
+
+        url = 'https://jira.esss.lu.se/rest/api/latest/issue/'
+        payload = {
+            "fields": {
+                "project": {"key": "ICSHWI"},
+                "summary": summary,
+                "description": description,
+                "assignee":{"name":self.user},
+                "issuetype": {
+                    "name": "Task"
+                    }
+                }
+            }
+
+        response = requests.post(
+            url, auth=self.auth, headers=self.headers, data=json.dumps(payload))
+        self.response_ok(response)
+
     def subtask(self, parent, summary, effort):
         self.login()
         if not self.loggedin:
@@ -311,7 +333,15 @@ class HJira(object):
         if response.status_code == 200:
             return True # Successful 'get'
         elif response.status_code == 201:
-            W().write('Successfully posted\n', 'ok')
+            curframe = inspect.currentframe()
+            calframe = inspect.getouterframes(curframe, 2)
+            caller = calframe[1][3]
+            data = response.json()
+            if caller == 'task' or caller == 'subtask':
+                W().write('Created {}\n' .format(data['key']), 'ok')
+            else:
+                W().write('Successfully posted\n', 'ok')
+
             return True
         elif response.status_code == 204:
             W().write('Success\n', 'ok')
