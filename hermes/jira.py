@@ -829,8 +829,10 @@ class HJira(object):
 
         email = '<html>'
         email += '<p>Dear {},</p>' .format(self.lm_mailaddress.split(".")[0].title())
-        email += '<p>Achievements:</p>'
-        email += '<ul>'
+
+        if achievements:
+            email += '<p>Achievements:</p>'
+            email += '<ul>'
 
         for a in achievements:
             email += a
