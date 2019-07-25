@@ -713,6 +713,26 @@ class HJira(object):
         else:
             W().write('No work to log found in {}\n' .format(path), 'warning')
 
+    def getParent(self, ticket, summary=False):
+        meta = 'https://jira.esss.lu.se/rest/api/2/issue/'+ticket
+        response = requests.get(meta, auth=self.auth, headers=self.headers)
+        response_ok = self.response_ok(response)
+        if not response_ok:
+            return False
+        meta_data = response.json()
+        try:
+            parent = meta_data["fields"]["parent"]
+            parent_key = parent["key"]
+            parent_summary = parent["fields"]["summary"]
+        except:
+            parent_key = "orphan"
+            parent_summary = ""
+
+        if summary:
+            return parent_key, parent_summary, meta_data["fields"]["summary"]
+        else:
+            return parent_key, parent_summary
+
     def weekly(self, planned_tickets=None, problems=None):
         self.login()
         if not self.loggedin:
@@ -729,7 +749,7 @@ class HJira(object):
 
         response = requests.get(ticket_url, auth=self.auth, headers=self.headers)
         response_ok = self.response_ok(response)
-        if response_ok is False:
+        if not response_ok:
             return
 
         data = response.json()
@@ -766,16 +786,7 @@ class HJira(object):
                         comments.append(w["comment"].strip().replace(".", ""))
 
             if has_work:
-                meta = 'https://jira.esss.lu.se/rest/api/2/issue/'+ticket
-                response = requests.get(meta, auth=self.auth, headers=self.headers)
-                meta_data = response.json()
-                try:
-                    parent = meta_data["fields"]["parent"]
-                    parent_key = parent["key"]
-                    parent_summary = parent["fields"]["summary"]
-                except:
-                    parent_key = "orphan"
-                    parent_summary = ""
+                parent_key, parent_summary = self.getParent(ticket)
 
                 if parent_key not in list(report.keys()):
                     report[parent_key] = {}
@@ -785,7 +796,6 @@ class HJira(object):
                 report[parent_key]["children"][ticket] = {}
                 report[parent_key]["children"][ticket]["description"] = i["fields"]["summary"]
                 report[parent_key]["children"][ticket]["comment"] = comments
-        # print(json.dumps(report, indent=4, separators=(",", ":")))
 
         # If a parent to a ticket is also in orphan, remove it from orphan
         for p in report:
@@ -796,7 +806,7 @@ class HJira(object):
         url = 'https://jira.esss.lu.se/browse'
         for parent, parent_data in report.items():
             if parent != "orphan":
-                achievements.append('<li>{} - [<a href="{}/{}">{}</a>]</li><ul>'
+                achievements.append('<li>{} [<a href="{}/{}">{}</a>]</li><ul>'
                                         .format(report[parent]["description"],
                                                     url, parent, parent))
 
@@ -808,7 +818,7 @@ class HJira(object):
                 if comment:
                     comment = ": " + comment
 
-                achievements.append('<li>{}{} - [<a href="{}/{}">{}</a>]</li>'
+                achievements.append('<li>{}{} [<a href="{}/{}">{}</a>]</li>'
                                         .format(data["description"],
                                                 comment,
                                                 url, ticket, ticket))
@@ -833,24 +843,52 @@ class HJira(object):
             for p in problems:
                 email += '<li>{}</li>'.format(p)
 
-        plans = []
+        plans = {}
         if planned_tickets is not None:
             for ticket in planned_tickets.split():
                 url = 'https://jira.esss.lu.se/rest/api/2/issue/{}' .format(ticket)
-                response = requests.get(url, auth=self.auth, headers=self.headers)
-                response_ok = self.response_ok(response)
-                if response_ok:
-                    planned_data = response.json()
-                    descr = planned_data["fields"]["summary"]
-                    plans.append('<li>{} - [<a href="{}/{}">{}</a>]</li>'
-                                .format(descr, url, ticket, ticket))
+                data = self.getParent(ticket, True)
+
+                if not data:
+                    W().write("{}\n" .format(ticket), "warning")
+                    continue
                 else:
-                    W().write("{} was not found\n\n" .format(ticket), "warning")
+                    parent_key = data[0]
+                    parent_summary = data[1]
+                    summary = data[2]
+
+                    if parent_key not in list(plans.keys()):
+                        plans[parent_key] = {}
+                        plans[parent_key]["description"] = parent_summary
+                        plans[parent_key]["children"] = {}
+
+                    plans[parent_key]["children"][ticket] = {}
+                    plans[parent_key]["children"][ticket]["description"] = summary
+
+            for p in plans:
+                if "orphan" in plans and p in plans["orphan"]["children"]:
+                    plans["orphan"]["children"].pop(p, None)
+
+            plan_text = []
+            for parent, parent_data in plans.items():
+                if parent != "orphan":
+                    plan_text.append('<li>{} [<a href="{}/{}">{}</a>]</li><ul>'
+                                        .format(plans[parent]["description"],
+                                                    url, parent, parent))
+
+                for ticket, data in plans[parent]["children"].items():
+                    plan_text.append('<li>{} [<a href="{}/{}">{}</a>]</li>'
+                                        .format(data["description"],
+                                                url, ticket, ticket))
+
+                if parent != "orphan":
+                    last_entry = plan_text[-1] + "</ul>"
+                    plan_text[-1] = last_entry
 
             email += '</ul>'
             email += '<p>Plans for next week:</p>'
             email += '<ul>'
-            for p in plans:
+            for p in plan_text:
                 email += p
 
         email += '</ul>'
@@ -859,20 +897,8 @@ class HJira(object):
         email += '</p>'
         email += '</html>'
 
-        # W().write("Preview:\n\n", "warning")
-        # soup = BeautifulSoup(email, "lxml").get_text(separator="\n")
-        # soup = soup.replace("[\n", "[")
-        # soup = soup.replace("\n]", "]")
-        # soup = soup.replace("\n -", " -")
-        # soup = soup.replace('\n','\n\n')
-        # print(soup)
-        # W().write('\nWould you like to send this to {}? [Y/n]:'
-        #               .format(self.mailaddress), 'task')
-        # send = input(' ').lower()
-        # if send == "y":
         self.email(self.mailaddress, "Weekly report", email, html=True)
-        # else:
-        #     return
+
 
     def stop_loading(self):
         self.stop = True
