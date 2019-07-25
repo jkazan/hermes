@@ -25,11 +25,13 @@ class CLIReactor(object):
             "comment"       : self.hjira.comment,
             "comments"      : self.hjira.comments,
             "email"         : self.hjira.email,
+            # "estimate"      : self.hjira.estimate,
             "graph"         : self.hjira.graph,
             "log"           : self.hjira.log,
             "org"           : self.hjira.org,
             "state"         : self.hjira.state,
             "subtask"       : self.hjira.subtask,
+            "task"          : self.hjira.task,
             "tickets"       : self.hjira.tickets,
             "weekly"        : self.hjira.weekly,
             "username"      : self.hjira.username,
@@ -76,16 +78,18 @@ class CLIReactor(object):
         comment_descr = 'Comment on a ticket'
         comments_descr = 'Get all comments on a ticket'
         email_descr = 'Send email'
+        estimate_descr = 'Change estimated effort'
         graph_descr = 'Draw relationship graph'
         log_descr = 'Log work to a ticket'
         org_descr = 'Parse emacs org-mode file and log work'
         state_descr = 'Change state of a ticket (e.g. backlog)'
         subtask_descr = 'Create subtask related to its parent'
+        task_descr = 'Create task'
         quit_descr = 'Quit Hermes'
         tickets_a_descr = 'List assignee\'s tickets'
         tickets_p_descr = 'List project\'s tickets'
         username_descr = 'Remember|forget username'
-        weekly_descr = 'Parse .org file, ouput weekly report'
+        weekly_descr = 'Send weekly report to user'
         install_e3 = 'Install e3 with epics 7 + common mods'
         install_css = 'Install css production|development'
         install_plcf = 'Install plc factory'
@@ -101,15 +105,17 @@ class CLIReactor(object):
             'comment   <ticket> "<comment>"'          : comment_descr,
             'comments  <ticket>'                      : comments_descr,
             'email     <to> <subject> <message>'      : email_descr,
+            # 'estimate  <ticket> "<time>"'             : estimate_descr,
             'graph     <ticket> [box|circle|ellipse]' : graph_descr,
             'log       <ticket> "<time>" "<comment>"' : log_descr,
             'org       <path to .org file>'           : org_descr,
             'state     <ticket> "<state>"'            : state_descr,
-            'subtask   <parent ticket> "<summary>"'   : subtask_descr,
+            'subtask   <parent> "<title>" "<effort>"' : subtask_descr,
+            'task      <summary> [<description>]'     : task_descr,
             'tickets   [<assignee>]'                  : tickets_a_descr,
             '          [<project> project]'           : tickets_p_descr,
             'username  remember | forget'             : username_descr,
-            'weekly    <path to .org file>'           : weekly_descr,
+            'weekly    ["<tickets>"] ["<issues>"]'    : weekly_descr,
             'Installation'                            : None,
             'install   e3 <install path>'             : install_e3,
             '          css <install path> [<branch>]' : install_css,
