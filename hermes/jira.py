@@ -798,7 +798,7 @@ class HJira(object):
 
         # If a parent to a ticket is also in orphan, remove it from orphan
         for p in report:
-            if "orphan" in report
+            if "orphan" in report:
                 if p in report["orphan"]["children"]:
                     report["orphan"]["children"].pop(p, None)
 
