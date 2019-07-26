@@ -1,5 +1,4 @@
 from __future__ import print_function
-# from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import os
 import sys
@@ -798,7 +797,7 @@ class HJira(object):
                 report[parent_key]["children"][ticket]["comment"] = comments
 
         # If a parent to a ticket is also in orphan, remove it from orphan
-        for p in report:
+        for p in report and "orphan" in report:
             if p in report["orphan"]["children"]:
                 report["orphan"]["children"].pop(p, None)
 
