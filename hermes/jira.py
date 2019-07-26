@@ -397,7 +397,6 @@ class HJira(object):
 
         data = response.json()
         issues = data['issues']
-        print(json.dumps(issues[0], indent=4, separators=(",", ":")))
 
         if self.user == "marinovojneski": #TODO: this was a quick fix for Marino
             for i in issues:
