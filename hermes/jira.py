@@ -805,12 +805,12 @@ class HJira(object):
                     report["orphan"]["children"].pop(p, None)
 
         achievements = []
-        url = 'https://jira.esss.lu.se/browse'
+        browse_url = 'https://jira.esss.lu.se/browse'
         for parent, parent_data in report.items():
             if parent != "orphan":
                 achievements.append('<li>{} [<a href="{}/{}">{}</a>]</li><ul>'
                                         .format(report[parent]["description"],
-                                                    url, parent, parent))
+                                                    browse_url, parent, parent))
 
             for ticket, data in report[parent]["children"].items():
                 comment = ""
@@ -823,7 +823,7 @@ class HJira(object):
                 achievements.append('<li>{}{} [<a href="{}/{}">{}</a>]</li>'
                                         .format(data["description"],
                                                 comment,
-                                                url, ticket, ticket))
+                                                browse_url, ticket, ticket))
 
             if parent != "orphan":
                 last_entry = achievements[-1] + "</ul>"
@@ -878,12 +878,12 @@ class HJira(object):
                 if parent != "orphan":
                     plan_text.append('<li>{} [<a href="{}/{}">{}</a>]</li><ul>'
                                         .format(plans[parent]["description"],
-                                                    url, parent, parent))
+                                                    browse_url, parent, parent))
 
                 for ticket, data in plans[parent]["children"].items():
-                    plan_text.append('<li>{} [<a href="{}">{}</a>]</li>'
+                    plan_text.append('<li>{} [<a href="{}/{}">{}</a>]</li>'
                                         .format(data["description"],
-                                                url, ticket))
+                                                browse_url, ticket, ticket))
 
                 if parent != "orphan":
                     last_entry = plan_text[-1] + "</ul>"
