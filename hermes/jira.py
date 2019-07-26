@@ -783,6 +783,8 @@ class HJira(object):
                     if start < date_obj < end:
                         has_work = True
                         comments.append(w["comment"].strip().replace(".", ""))
+            else:
+                break
 
             if has_work:
                 parent_key, parent_summary = self.getParent(ticket)
@@ -879,9 +881,9 @@ class HJira(object):
                                                     url, parent, parent))
 
                 for ticket, data in plans[parent]["children"].items():
-                    plan_text.append('<li>{} [<a href="{}/{}">{}</a>]</li>'
+                    plan_text.append('<li>{} [<a href="{}">{}</a>]</li>'
                                         .format(data["description"],
-                                                url, ticket, ticket))
+                                                url, ticket))
 
                 if parent != "orphan":
                     last_entry = plan_text[-1] + "</ul>"
