@@ -797,9 +797,10 @@ class HJira(object):
                 report[parent_key]["children"][ticket]["comment"] = comments
 
         # If a parent to a ticket is also in orphan, remove it from orphan
-        for p in report and "orphan" in report:
-            if p in report["orphan"]["children"]:
-                report["orphan"]["children"].pop(p, None)
+        for p in report:
+            if "orphan" in report
+                if p in report["orphan"]["children"]:
+                    report["orphan"]["children"].pop(p, None)
 
         achievements = []
         url = 'https://jira.esss.lu.se/browse'
