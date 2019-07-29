@@ -8,7 +8,7 @@ from distutils.version import LooseVersion
 import subprocess
 
 class HInstall(object):
-    def install(self, tool, dest, opt=None):
+    def install(self, tool, destination, opt=None):
         """Install software tool.
 
         param tool: Name of tool to install
@@ -16,7 +16,7 @@ class HInstall(object):
         """
         sudo = False
         path = os.path.dirname(os.path.abspath(__file__)) # Path to hermes dir
-        dest = os.path.expanduser(dest)
+        dest = os.path.expanduser(destination)
 
         # Check privileges
         priv_dest = dest
