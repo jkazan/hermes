@@ -162,11 +162,11 @@ class CLIReactor(object):
 
         function = self.commands[command]
 
-        # try:
-        args = self.parse(data)
-        function(*args)
-        # except TypeError as type_error:
-        #     Write().write("{}\n".format(type_error), "warning")
+        try:
+            args = self.parse(data)
+            function(*args)
+        except TypeError as type_error:
+            Write().write("{}\n".format(type_error), "warning")
 
     def parse(self, args, comments=False, posix=True):
         """Parse command from command line.
