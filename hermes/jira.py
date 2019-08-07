@@ -731,7 +731,14 @@ class HJira(object):
         else:
             return parent_key, parent_summary
 
-    def weekly(self, planned_tickets=None, problems=None):
+    def weekly(self, trigger, planned_tickets=None, problems=None):
+        trigger = trigger.upper()
+        projects = ["HWI", "MPS", "INFR"]
+        users = ["IMPLEMENTED", "WORKLOG"]
+        if trigger not in projects and trigger not in users:
+            W().write("Invalid trigger: '{}'\n" .format(trigger), "warning")
+            return
+
         self.login()
         if not self.loggedin:
             return
@@ -742,8 +749,10 @@ class HJira(object):
         end = start + timedelta(days=6)
         end = datetime.combine(end, datetime.max.time())
 
-        ticket_url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee={}+order+by+updated&maxResults=20' \
-.format(self.user)
+        if trigger in projects:
+            ticket_url = 'https://jira.esss.lu.se/rest/api/2/search?jql=project=ICS{}+order+by+updated&maxResults=50&expand=changelog' .format(trigger)
+        else:
+            ticket_url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee={}+order+by+updated&maxResults=20&expand=changelog' .format(self.user)
 
         response = requests.get(ticket_url, auth=self.auth, headers=self.headers)
         response_ok = self.response_ok(response)
@@ -754,64 +763,81 @@ class HJira(object):
         issues = data['issues']
 
         if not issues:
-            W().write("No tickets found for '{}' \n" .format(self.user),'warning')
+            W().write("No tickets found \n", "warning")
             return
 
         report = {}
-        log = []
         for i in issues:
+            comments = [""]
             updated = i["fields"]["updated"]
             date = " ".join(re.split("T|\+", updated)[0:2])
             date_obj = datetime.strptime(date, '%Y-%m-%d %H:%M:%S.%f')
             has_work = False
             ticket = i["key"]
+
             if start < date_obj < end:
-                log_url = 'https://jira.esss.lu.se/rest/api/2/issue/{}/worklog' .format(ticket)
-                response = requests.get(log_url, auth=self.auth, headers=self.headers)
-                response_ok = self.response_ok(response)
-                log_data = response.json()
-                worklogs = log_data["worklogs"]
+                if trigger == "WORKLOG":
+                    log_url = 'https://jira.esss.lu.se/rest/api/2/issue/{}/worklog' .format(ticket)
+                    response = requests.get(log_url, auth=self.auth, headers=self.headers)
+                    response_ok = self.response_ok(response)
+                    log_data = response.json()
+                    worklogs = log_data["worklogs"]
 
-                comment_nbr = 0
-                comments = []
-                for w in worklogs:
-                    updated = w["updated"]
-                    date = " ".join(re.split("T|\+", updated)[0:2])
-                    date_obj = datetime.strptime(date, '%Y-%m-%d %H:%M:%S.%f')
+                    for w in worklogs:
+                        updated = w["updated"]
+                        date = " ".join(re.split("T|\+", updated)[0:2])
+                        date_obj = datetime.strptime(date, '%Y-%m-%d %H:%M:%S.%f')
 
-                    if start < date_obj < end:
-                        has_work = True
-                        comments.append(w["comment"].strip().replace(".", ""))
+                        if start < date_obj < end:
+                            has_work = True
+                            comments.append(w["comment"].strip().replace(".", ""))
+
+                elif trigger == "IMPLEMENTED" or trigger in projects:
+                    histories = i["changelog"]["histories"]
+                    for h in histories:
+                        items = h["items"]
+                        for item in items:
+                            from_unimplemented = item["fromString"] != "Implemented"
+                            to_implemented = item["toString"] == "Implemented"
+                            if from_unimplemented and to_implemented:
+                                print("from: {}    to: {}"
+                                          .format(item["fromString"], item["toString"]))
+                                has_work = True
             else:
                 break
 
             if has_work:
+                user = i["fields"]["assignee"]["name"]
+                if user not in list(report.keys()):
+                    report[user] = {}
+
                 parent_key, parent_summary = self.getParent(ticket)
 
-                if parent_key not in list(report.keys()):
-                    report[parent_key] = {}
-                    report[parent_key]["description"] = parent_summary
-                    report[parent_key]["children"] = {}
+                if parent_key not in list(report[user].keys()):
+                    report[user][parent_key] = {}
+                    report[user][parent_key]["description"] = parent_summary
+                    report[user][parent_key]["children"] = {}
 
-                report[parent_key]["children"][ticket] = {}
-                report[parent_key]["children"][ticket]["description"] = i["fields"]["summary"]
-                report[parent_key]["children"][ticket]["comment"] = comments
+                report[user][parent_key]["children"][ticket] = {}
+                report[user][parent_key]["children"][ticket]["description"] = i["fields"]["summary"]
+                report[user][parent_key]["children"][ticket]["comment"] = comments
 
         # If a parent to a ticket is also in orphan, remove it from orphan
         for p in report:
-            if "orphan" in report:
-                if p in report["orphan"]["children"]:
-                    report["orphan"]["children"].pop(p, None)
+            if "orphan" in report[user]:
+                if p in report[user]["orphan"]["children"]:
+                    report[user]["orphan"]["children"].pop(p, None)
 
         achievements = []
         browse_url = 'https://jira.esss.lu.se/browse'
-        for parent, parent_data in report.items():
+
+        for parent, parent_data in report[user].items():
             if parent != "orphan":
                 achievements.append('<li>{} [<a href="{}/{}">{}</a>]</li><ul>'
-                                        .format(report[parent]["description"],
+                                        .format(report[user][parent]["description"],
                                                     browse_url, parent, parent))
 
-            for ticket, data in report[parent]["children"].items():
+            for ticket, data in report[user][parent]["children"].items():
                 comment = ""
                 for c in data["comment"]:
                     if c.strip():
