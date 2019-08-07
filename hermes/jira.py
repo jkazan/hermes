@@ -800,8 +800,6 @@ class HJira(object):
                             from_unimplemented = item["fromString"] != "Implemented"
                             to_implemented = item["toString"] == "Implemented"
                             if from_unimplemented and to_implemented:
-                                print("from: {}    to: {}"
-                                          .format(item["fromString"], item["toString"]))
                                 has_work = True
             else:
                 break
@@ -828,31 +826,12 @@ class HJira(object):
                 if p in report[user]["orphan"]["children"]:
                     report[user]["orphan"]["children"].pop(p, None)
 
-        achievements = []
         browse_url = 'https://jira.esss.lu.se/browse'
 
-        for parent, parent_data in report[user].items():
-            if parent != "orphan":
-                achievements.append('<li>{} [<a href="{}/{}">{}</a>]</li><ul>'
-                                        .format(report[user][parent]["description"],
-                                                    browse_url, parent, parent))
-
-            for ticket, data in report[user][parent]["children"].items():
-                comment = ""
-                for c in data["comment"]:
-                    if c.strip():
-                        comment += c.strip().replace(".", "")+". "
-                if comment:
-                    comment = ": " + comment
-
-                achievements.append('<li>{}{} [<a href="{}/{}">{}</a>]</li>'
-                                        .format(data["description"],
-                                                comment,
-                                                browse_url, ticket, ticket))
-
-            if parent != "orphan":
-                last_entry = achievements[-1] + "</ul>"
-                achievements[-1] = last_entry
+        if trigger in users:
+            achievements = self.user_achievements(report, browse_url)
+        else:
+            achievements = self.project_achievements(report, browse_url)
 
         email = '<html>'
         email += '<p>Dear {},</p>' .format(self.lm_mailaddress.split(".")[0].title())
@@ -930,6 +909,63 @@ class HJira(object):
 
         self.email(self.mailaddress, "Weekly report", email, html=True)
 
+    def user_achievements(self, report, browse_url):
+        achievements = []
+        for parent, parent_data in report[self.user].items():
+            if parent != "orphan":
+                achievements.append('<li>{} [<a href="{}/{}">{}</a>]</li><ul>'
+                                        .format(report[self.user][parent]["description"],
+                                                    browse_url, parent, parent))
+
+            for ticket, data in report[self.user][parent]["children"].items():
+                comment = ""
+                for c in data["comment"]:
+                    if c.strip():
+                        comment += c.strip().replace(".", "")+". "
+                if comment:
+                    comment = ": " + comment
+
+                achievements.append('<li>{}{} [<a href="{}/{}">{}</a>]</li>'
+                                        .format(data["description"],
+                                                comment,
+                                                browse_url, ticket, ticket))
+
+            if parent != "orphan":
+                last_entry = achievements[-1] + "</ul>"
+                achievements[-1] = last_entry
+
+        return achievements
+
+    def project_achievements(self, report, browse_url):
+        achievements = []
+        for u in report.keys():
+            achievements.append('<li>{}</li><ul>' .format(u))
+            for parent, parent_data in report[u].items():
+                if parent != "orphan":
+                    achievements.append('<li>{} [<a href="{}/{}">{}</a>]</li><ul>'
+                                            .format(report[u][parent]["description"],
+                                                        browse_url, parent, parent))
+
+                for ticket, data in report[u][parent]["children"].items():
+                    comment = ""
+                    for c in data["comment"]:
+                        if c.strip():
+                            comment += c.strip().replace(".", "")+". "
+                    if comment:
+                        comment = ": " + comment
+
+                    achievements.append('<li>{}{} [<a href="{}/{}">{}</a>]</li>'
+                                            .format(data["description"],
+                                                    comment,
+                                                    browse_url, ticket, ticket))
+
+                if parent != "orphan":
+                    last_entry = achievements[-1] + "</ul>"
+                    achievements[-1] = last_entry
+
+            achievements[-1] = achievements[-1] + "</ul>"
+
+        return achievements
 
     def stop_loading(self):
         self.stop = True
