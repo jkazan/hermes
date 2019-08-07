@@ -1029,6 +1029,3 @@ class HJira(object):
                                   'darwin':'open'}[sys.platform]
         # subprocess.run([imageViewerFromCommandLine, options['image_file']])
         return options['image_file']
-
-
-    # curl -u johanneskazantzidis:Saraeva112 -X POST --data '{"transition": {"id": "11"}}' -H "Content-Type: application/json" https://jira.esss.lu.se/rest/api/latest/issue/ICSHWI-2685/transitions?expand=transitions.fields
