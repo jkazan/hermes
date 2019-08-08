@@ -732,12 +732,25 @@ class HJira(object):
         else:
             return parent_key, parent_summary
 
-    def weekly(self, trigger, planned_tickets=None, problems=None):
-        trigger = trigger.upper()
-        projects = ["HWI", "MPS", "INFR"]
+    def weekly(self, trig, planned_tickets=None, problems=None):
+        trigger = trig.upper()
+        projects = []
         users = ["IMPLEMENTED", "WORKLOG"]
+        if trigger not in users:
+            self.login()
+            if not self.loggedin:
+                return
+            project_url = 'https://jira.esss.lu.se/rest/api/2/project'
+            response = requests.get(project_url, auth=self.auth, headers=self.headers)
+            response_ok = self.response_ok(response)
+            if not response_ok:
+                return
+            data = response.json()
+            for d in data:
+                projects.append(d["key"])
         if trigger not in projects and trigger not in users:
-            W().write("Invalid trigger: '{}'\n" .format(trigger), "warning")
+            W().write("Invalid trigger: '{}'\n" .format(trig), "warning")
+            self.stop = True
             return
 
         self.login()
@@ -756,7 +769,7 @@ class HJira(object):
         end = datetime.combine(end, datetime.max.time())
 
         if trigger in projects:
-            ticket_url = 'https://jira.esss.lu.se/rest/api/2/search?jql=project=ICS{}+order+by+updated&maxResults=50&expand=changelog' .format(trigger)
+            ticket_url = 'https://jira.esss.lu.se/rest/api/2/search?jql=project={}+order+by+updated&maxResults=100&expand=changelog' .format(trigger)
         else:
             ticket_url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee={}+order+by+updated&maxResults=20&expand=changelog' .format(self.user)
 
@@ -774,6 +787,7 @@ class HJira(object):
 
         report = {}
         for i in issues:
+            author = None
             comments = [""]
             updated = i["fields"]["updated"]
             date = " ".join(re.split("T|\+", updated)[0:2])
@@ -807,11 +821,22 @@ class HJira(object):
                             to_implemented = item["toString"] == "Implemented"
                             if from_unimplemented and to_implemented:
                                 has_work = True
+                                author = h["author"]["name"]
             else:
                 break
 
             if has_work:
-                user = i["fields"]["assignee"]["name"]
+                try:
+                    user = i["fields"]["assignee"]["name"]
+                except:
+                    if author:
+                        user = author
+                    else:
+                        user = i["creator"]["name"]
+                    # print(json.dumps(i["changelog"], indent=4, separators=(",", ":")))
+                    # return
+                        print("{} is the creator of {}, but there is no assignee."
+                                  .format(user, ticket))
                 if user not in list(report.keys()):
                     report[user] = {}
 
