@@ -29,6 +29,7 @@ class CLIReactor(object):
             "graph"         : self.hjira.graph,
             "log"           : self.hjira.log,
             "org"           : self.hjira.org,
+            "projects"      : self.hjira.projects,
             "state"         : self.hjira.state,
             "subtask"       : self.hjira.subtask,
             "task"          : self.hjira.task,
@@ -82,14 +83,16 @@ class CLIReactor(object):
         graph_descr = 'Draw relationship graph'
         log_descr = 'Log work to a ticket'
         org_descr = 'Parse emacs org-mode file and log work'
-        state_descr = 'Change state of a ticket (e.g. backlog)'
+        projects_descr = 'Get a list of all Jira projects'
+        state_descr = 'Change state of ticket, e.g. backlog'
         subtask_descr = 'Create subtask related to its parent'
         task_descr = 'Create task'
         quit_descr = 'Quit Hermes'
         tickets_a_descr = 'List assignee\'s tickets'
         tickets_p_descr = 'List project\'s tickets'
         username_descr = 'Remember|forget username'
-        weekly_descr = 'Send weekly report to user'
+        weekly_user_descr = 'Send weekly report about user'
+        weekly_project_descr = 'Send weekly report about project'
         install_e3 = 'Install e3 with epics 7 + common mods'
         install_css = 'Install css production|development'
         install_plcf = 'Install plc factory'
@@ -109,13 +112,15 @@ class CLIReactor(object):
             'graph     <ticket> [box|circle|ellipse]' : graph_descr,
             'log       <ticket> "<time>" "<comment>"' : log_descr,
             'org       <path to .org file>'           : org_descr,
+            'projects'                                : projects_descr,
             'state     <ticket> "<state>"'            : state_descr,
             'subtask   <parent> "<title>" "<effort>"' : subtask_descr,
             'task      <summary> [<description>]'     : task_descr,
             'tickets   [<assignee>]'                  : tickets_a_descr,
             '          [<project> project]'           : tickets_p_descr,
             'username  remember | forget'             : username_descr,
-            'weekly    ["<tickets>"] ["<issues>"]'    : weekly_descr,
+            'weekly    assignee <user> [<type>]'      : weekly_user_descr,
+            '          project <project>|all [<type>]': weekly_project_descr,
             'Installation'                            : None,
             'install   e3 <install path>'             : install_e3,
             '          css <install path> [<branch>]' : install_css,
@@ -177,8 +182,8 @@ class CLIReactor(object):
 
         :returns: Split arguments
         """
-        slit_args = shlex.split(args, comments, posix)
-        return slit_args
+        split_args = shlex.split(args, comments, posix)
+        return split_args
 
 if __name__ == '__main__':
     reactor = CLIReactor()
