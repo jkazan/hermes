@@ -848,6 +848,7 @@ class HJira(object):
             for r in d[p].keys(): # Responsible
                 aments.append('<li>{}</li><ul>' .format(r))
                 for parent, p_data in d[p][r].items(): # Parent
+                    has_parent = True
                     if parent is None:
                         real_parent = False
                         for o in p_data["children"].keys(): # Orphans
@@ -949,21 +950,28 @@ class HJira(object):
             W().write("Invalid report type: {}\n" .format(report_type), "warning")
             return
 
-        aments = self.achievements(report)
+        # If there are no achievements, no plans and no problems, then exit
+        if not report and problems is None and planned_keys is None:
+            print("Nothing to report")
+            return
+
+        # Create email
         mail = "<html>"
         mail += '<p>Dear {},</p>' .format(self.lm_mailaddress.split(".")[0].title())
+        if report:
+            aments = self.achievements(report)
 
-        if target.lower() == "all":
-            greeting = "ESS achievements:"
-        elif target_type.lower() == "project":
-            greeting = "{} achievements:" .format(target)
-        else:
-            greeting = "Achievements:"
+            if target.lower() == "all":
+                greeting = "ESS achievements:"
+            elif target_type.lower() == "project":
+                greeting = "{} achievements:" .format(target)
+            else:
+                greeting = "Achievements:"
 
-        mail += "<p>{}</p>" .format(greeting)
-        mail += "<ul>"
-        for a in aments:
-            mail += a
+            mail += "<p>{}</p>" .format(greeting)
+            mail += "<ul>"
+            for a in aments:
+                mail += a
 
         if problems is not None:
             mail += '</ul>'
@@ -1006,7 +1014,6 @@ class HJira(object):
             d = self.updateDict(d, issue, self.user)
 
         plans = self.achievements(d) #TODO: change name of def achievements
-        # plans[-1] = plans[-1][:-10]
 
         return plans
 
