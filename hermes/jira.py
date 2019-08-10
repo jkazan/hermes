@@ -23,6 +23,9 @@ import time
 class HJira(object):
 
     def __init__(self):
+        self.url = "https://jira.esss.lu.se"
+        self.smtp = 'mail.esss.lu.se'
+        self.email_domain = "esss.se"
         self.user = None
         self.mailaddress = None
         self.lm_mailaddress = None
@@ -48,10 +51,11 @@ class HJira(object):
             first = input("First name: ").lower()
             last = input("Last name: ").lower()
             self.user = "{}{}" .format(first, last)
-            self.mailaddress = "{}.{}@esss.se" .format(first, last)
+            self.mailaddress = "{}.{}@{}" .format(first, last,self.email_domain)
             lm_first = input("Line manager's first name: ").lower()
             lm_last = input("Line manager's last name: ").lower()
-            self.lm_mailaddress = "{}.{}@esss.se" .format(lm_first, lm_last)
+            self.lm_mailaddress = "{}.{}@{}" .format(lm_first, lm_last,
+                                                         self.email_domain)
 
             with open(path+'/'+self.user_file, 'w') as fw:
                 info = {
@@ -77,7 +81,7 @@ class HJira(object):
         msg.attach(body)
 
         try:
-            server = smtplib.SMTP('mail.esss.lu.se', 587)
+            server = smtplib.SMTP(self.smtp, 587)
             server.starttls()
             server.login(self.user, self.auth[1])
             server.sendmail(self.mailaddress, recipient, msg.as_string())
@@ -97,7 +101,9 @@ class HJira(object):
             while login_try < 2:
                 password = getpass.getpass("Password: ")
                 self.auth = (self.user, password)
-                url = 'https://jira.esss.lu.se/rest/api/2/search?jql=assignee=' + self.user
+                url = '{}/rest/api/2/search?jql=assignee={}' \
+                  .format(self.url, self.user)
+
                 response = requests.get(url, auth=self.auth, headers=self.headers)
                 self.loggedin = self.response_ok(response)
                 if self.loggedin:
@@ -153,8 +159,8 @@ class HJira(object):
             return
 
 
-        url = 'https://jira.esss.lu.se/rest/api/latest/issue/'
-        url += '{}/transitions?expand=transitions.fields' .format(ticket)
+        url = "{}/rest/api/latest/issue/{}/transitions?expand=transitions.fields" \
+          .format(self.url, ticket)
 
         # for state_id in range(32,100):
         payload = {"transition": {"id": state_id}}
@@ -178,7 +184,7 @@ class HJira(object):
         if not self.loggedin:
             return
 
-        url = 'https://jira.esss.lu.se/rest/api/latest/issue/'
+        url = "{}/rest/api/latest/issue/" .format(self.url)
         payload = {
             "fields": {
                 "project": {"key": "ICSHWI"},
@@ -200,7 +206,7 @@ class HJira(object):
         if not self.loggedin:
             return
 
-        url = 'https://jira.esss.lu.se/rest/api/latest/issue/'
+        url = "{}/rest/api/latest/issue/" .format(self.url)
         project = parent.split("-")[0]
         payload = {
             "fields":{
@@ -244,10 +250,12 @@ class HJira(object):
         if not self.loggedin:
             return
 
-        url = 'https://jira.esss.lu.se/rest/api/latest/issue/'+ticket+'/comment'
+        url = "{}/rest/api/latest/issue/{}/comment" .format(self.url, ticket)
         payload = '{"body":"'+comment+'"}'
-        response = requests.post(
-            url, auth=self.auth, headers=self.headers, data=payload.encode('utf8'))
+        response = requests.post(url, auth=self.auth,
+                                     headers=self.headers,
+                                     data=payload.encode('utf8'))
+
         self.response_ok(response, ticket)
 
     def comments(self, ticket):
@@ -259,7 +267,7 @@ class HJira(object):
         if not self.loggedin:
             return
 
-        url = 'https://jira.esss.lu.se/rest/api/latest/issue/'+ticket+'/comment'
+        url = "{}/rest/api/latest/issue/{}/comment" .format(self.url, ticket)
         response = requests.get(url, auth=self.auth, headers=self.headers)
 
         if not self.response_ok(response, ticket):
@@ -309,10 +317,11 @@ class HJira(object):
         if not self.loggedin:
             return
 
-        url = 'https://jira.esss.lu.se/rest/api/2/issue/'+ticket+'/worklog'
+        url = "{}/rest/api/2/issue/{}/worklog" .format(self.url, ticket)
         payload = '{"timeSpent":"'+time+'","comment":"'+comment+'"}'
-        response = requests.post(
-            url, auth=self.auth, headers=self.headers, data=payload.encode('utf8'))
+        response = requests.post(url, auth=self.auth, headers=self.headers,
+                                     data=payload.encode('utf8'))
+
         self.response_ok(response, ticket)
 
         return response
@@ -367,11 +376,10 @@ class HJira(object):
             # else:
             #     print(data)
         elif response.status_code == 403:
-            W().write('Forbidden\nThis may be caused by too many attempts '
-                          +'to enter your password. If this is the \n'
-                          +'case, visit your jira domain in a browser, logout and login again. This will \n'
-                          +'reset the count and Hermes will work once again.\n'
-                          , 'warning')
+            W().write("""Forbidden\nThis may be caused by too many attempts
+to enter your password. If this is the \n'
+case, visit your jira domain in a browser, logout and login again. This will \n'
+reset the count and Hermes will work once again.\n""", "warning")
         else:
             W().write(str(response.status_code)+"\n", 'warning')
 
@@ -390,7 +398,9 @@ class HJira(object):
         if key is None and target == 'assignee':
             key = self.user
 
-        url = 'https://jira.esss.lu.se/rest/api/2/search?jql='+target+'=' + key + '&maxResults=999'
+        url = "{}/rest/api/2/search?jql={}={}&maxResults=999" \
+          .format(self.url, target, key)
+
         response = requests.get(url, auth=self.auth, headers=self.headers)
         response_ok = self.response_ok(response)
         if response_ok is False:
@@ -455,15 +465,16 @@ class HJira(object):
                                                         data['issuetype'],
                                                         data['status'],
                                                         data['progress'],
-                                                        data['summary']), 'epic')
+                                                        data['summary']),'epic')
                 for k, d in tickets.items():
                     try:
                         if d['parent']['key'] == key:
-                            W().write('  {:<14s}{:<14s}{:<9s}{:<7s}{}\n' .format(k,
-                                                        d['issuetype'],
-                                                        d['status'],
-                                                        d['progress'],
-                                                        d['summary']), 'task')
+                            W().write('  {:<14s}{:<14s}{:<9s}{:<7s}{}\n' \
+                                          .format(k,
+                                              d['issuetype'],
+                                              d['status'],
+                                              d['progress'],
+                                              d['summary']), 'task')
                     except:
                         pass
 
@@ -533,7 +544,9 @@ class HJira(object):
         if key is None and target == 'assignee':
             key = self.user
 
-        url = 'https://jira.esss.lu.se/rest/api/2/search?jql='+target+'=' + key + '&maxResults=999'
+        url = "{}/rest/api/2/search?jql={}={}&maxResults=999" \
+          .format(self.url, target, key)
+
         response = requests.get(url, auth=self.auth, headers=self.headers)
         response_ok = self.response_ok(response)
         if response_ok is False:
@@ -634,7 +647,7 @@ class HJira(object):
         if not self.loggedin:
             return
 
-        url = 'https://jira.esss.lu.se/rest/api/2/issue/'+ticket
+        url = "{}/rest/api/2/issue/{}" .format(self.url, ticket)
         payload = '{"fields":{"assignee":{"name":"'+user+'"}}}'
         response = requests.put(
             url, auth=self.auth, headers=self.headers, data=payload)
@@ -677,7 +690,7 @@ class HJira(object):
             if "#+END: clocktable" in lines[i]:
                 break
 
-            match = re.search("^\|[^-][^ Headline][^ \*Total].*ICSHWI", lines[i])
+            match = re.search("^\|[^-][^ Headline][^ \*Total].*ICSHWI",lines[i])
             if match is not None:
                 match_flag = True
                 cols = lines[i].split('|')
@@ -716,7 +729,7 @@ class HJira(object):
         self.login()
         if not self.loggedin:
             return
-        project_url = 'https://jira.esss.lu.se/rest/api/2/project'
+        project_url = "{}/rest/api/2/project" .format(self.url)
         response = requests.get(project_url, auth=self.auth, headers=self.headers)
         response_ok = self.response_ok(response)
         if not response_ok:
@@ -725,12 +738,15 @@ class HJira(object):
         for d in data:
             W().write("{:<15s}{:<65}\n" .format(d["key"], d["name"]))
 
-    def getIssues(self, target_type, target, max_results=100, start=None, end=None):
+    def getIssues(self, target_type, target, max_results=100,
+                      start=None, end=None):
+
         accepted = ["assignee", "project"]
         if target_type not in accepted:
             W().write("Invalid target type: {}" .format(target_type), "warning")
 
-        url = "https://jira.esss.lu.se/rest/api/2/search?jql={}={}+order+by+updated&maxResults={}&expand=changelog" .format(target_type, target, max_results)
+        url = "{}/rest/api/2/search?jql={}={}+order+by+updated&maxResults={}&expand=changelog" \
+          .format(self.url, target_type, target, max_results)
 
         response = requests.get(url, auth=self.auth, headers=self.headers)
 
@@ -765,16 +781,15 @@ class HJira(object):
                     from_unimplemented = item["fromString"] != "Implemented"
                     to_implemented = item["toString"] == "Implemented"
                     if from_unimplemented and to_implemented:
-                        implemented = self.updateDict(implemented, i, h["author"]["displayName"])
+                        implemented = self.updateDict(
+                            implemented, i, h["author"]["displayName"])
 
         return implemented
 
     def getWorklog(self, issues, start, end):
         work = {}
         for i in issues:
-            url = 'https://jira.esss.lu.se/rest/api/2/issue/{}/worklog' \
-              .format(i["key"])
-
+            url = "{}/rest/api/2/issue/{}/worklog" .format(self.url, i["key"])
             response = requests.get(url, auth=self.auth, headers=self.headers)
             log_data = response.json()
             worklogs = log_data["worklogs"]
@@ -818,8 +833,7 @@ class HJira(object):
         d_parent = d[project][responsible][parent_key]
         if parent_key is not None:
             d_parent["summary"] = parent["fields"]["summary"]
-            d_parent["url"] = "https://jira.esss.lu.se/browse/{}" \
-              .format(parent_key)
+            d_parent["url"] = "{}/browse/{}" .format(self.url, parent_key)
 
         if "children" not in d[project][responsible][parent_key]:
             d_parent["children"] = {}
@@ -830,10 +844,10 @@ class HJira(object):
 
         d_key = d_parent["children"][key]
         d_key["summary"] = issue["fields"]["summary"]
-        d_key["url"] = "https://jira.esss.lu.se/browse/{}" .format(key)
+        d_key["url"] = "{}/browse/{}" .format(self.url, key)
         if comment is not None:
             if "comments" in d_key:
-                d_key["comments"] = "{} | {}" .format(d_key["comments"], comment)
+                d_key["comments"] = "{} | {}" .format(d_key["comments"],comment)
             else:
                 d_key["comments"] = comment
         else:
@@ -908,7 +922,7 @@ class HJira(object):
         msg.attach(body)
 
         try:
-            server = smtplib.SMTP('mail.esss.lu.se', 587)
+            server = smtplib.SMTP(self.smtp, 587)
             server.starttls()
             server.login(self.user, self.auth[1])
             server.sendmail(self.mailaddress, recipient, msg.as_string())
@@ -922,8 +936,11 @@ class HJira(object):
         if not self.loggedin:
             return
         projects = []
-        project_url = 'https://jira.esss.lu.se/rest/api/2/project'
-        response = requests.get(project_url, auth=self.auth, headers=self.headers)
+        project_url = "{}/rest/api/2/project" .format(self.url)
+
+        response = requests.get(
+            project_url, auth=self.auth, headers=self.headers)
+
         data = response.json()
         for d in data:
             projects.append(d["key"])
@@ -940,14 +957,15 @@ class HJira(object):
                 p = "'{}'" .format(project)
                 issues += self.getIssues("project", p, max_results, start, end)
         else:
-            issues = self.getIssues(target_type, target, max_results, start, end)
+            issues = self.getIssues(target_type, target, max_results, start,end)
 
         if report_type == "implemented":
             report = self.getImplemented(issues)
         elif report_type == "worklog":
             report = self.getWorklog(issues, start, end)
         else:
-            W().write("Invalid report type: {}\n" .format(report_type), "warning")
+            W().write("Invalid report type: {}\n" .format(report_type),
+                          "warning")
             return
 
         # If there are no achievements, no plans and no problems, then exit
@@ -957,7 +975,9 @@ class HJira(object):
 
         # Create email
         mail = "<html>"
-        mail += '<p>Dear {},</p>' .format(self.lm_mailaddress.split(".")[0].title())
+        mail += '<p>Dear {},</p>' \
+          .format(self.lm_mailaddress.split(".")[0].title())
+
         if report:
             aments = self.achievements(report)
 
@@ -1004,7 +1024,7 @@ class HJira(object):
         d = {}
         plans = []
         for key in planned_keys.split():
-            url = 'https://jira.esss.lu.se/rest/api/2/issue/{}' .format(key)
+            url = "{}/rest/api/2/issue/{}" .format(self.url, key)
             response = requests.get(url, auth=self.auth, headers=self.headers)
             if not self.response_ok(response, key):
                 return
@@ -1075,7 +1095,7 @@ class HJira(object):
         path = os.path.dirname(os.path.abspath(__file__)) # Path to hermes dir
         options = {
             'cookie' : None,
-            'jira_url' : 'https://jira.esss.lu.se',
+            'jira_url' : self.url,
             'image_file' : path + '/' + ticket + '_graph.png',
             'store_true' : False,
             'store_true' : False,
