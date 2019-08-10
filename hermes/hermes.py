@@ -91,8 +91,7 @@ class CLIReactor(object):
         tickets_a_descr = 'List assignee\'s tickets'
         tickets_p_descr = 'List project\'s tickets'
         username_descr = 'Remember|forget username'
-        weekly_user_descr = 'Send weekly report about user'
-        weekly_project_descr = 'Send weekly report about project'
+        weekly_descr = 'Send weekly report email to user'
         install_e3 = 'Install e3 with epics 7 + common mods'
         install_css = 'Install css production|development'
         install_plcf = 'Install plc factory'
@@ -119,8 +118,10 @@ class CLIReactor(object):
             'tickets   [<assignee>]'                  : tickets_a_descr,
             '          [<project> project]'           : tickets_p_descr,
             'username  remember | forget'             : username_descr,
-            'weekly    assignee <user> [<type>]'      : weekly_user_descr,
-            '          project <project>|all [<type>]': weekly_project_descr,
+            'weekly    [OPTION]...'                   : weekly_descr,
+            '          project=<project>|all'         : "E.g. weekly project=ICSHWI",
+            '          assignee=<username>'           : "E.g. weekly assignee=johnsmith",
+            '          report=implemented|worklog'    : "E.g. weekly report=worklog",
             'Installation'                            : None,
             'install   e3 <install path>'             : install_e3,
             '          css <install path> [<branch>]' : install_css,

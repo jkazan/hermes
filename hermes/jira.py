@@ -21,7 +21,6 @@ import threading
 import time
 
 class HJira(object):
-
     def __init__(self):
         self.url = "https://jira.esss.lu.se"
         self.smtp = 'mail.esss.lu.se'
@@ -1037,11 +1036,32 @@ reset the count and Hermes will work once again.\n""", "warning")
 
         return plans
 
-    def weekly(self, target_type, target, report_type="implemented",
-                   planned_keys=None, problems=None):
+    def weekly(self, *varargs):
         self.login()
         if not self.loggedin:
             return
+
+        target_type = "assignee"
+        target = self.user
+        report_type = "implemented"
+        planned_keys = None
+        problems = None
+
+        for arg in varargs:
+            kw = arg.lower().split("=")
+            if kw[0] == "assignee":
+                target_type = "assignee"
+                target = kw[1]
+            elif kw[0] == "project":
+                target_type = "project"
+                target = kw[1]
+            elif kw[0] == "plans":
+                planned_keys = kw[1]
+            elif kw[0] == "problems":
+                problems = kw[1]
+            elif kw[0] == "report":
+                report_type = kw[1]
+
         today = datetime.today()
         start = today - timedelta(days=today.weekday())
         start = datetime.combine(start, datetime.min.time())
@@ -1156,3 +1176,9 @@ reset the count and Hermes will work once again.\n""", "warning")
                                   'darwin':'open'}[sys.platform]
         # subprocess.run([imageViewerFromCommandLine, options['image_file']])
         return options['image_file']
+
+    # weekly
+    # weekly assignee attilahorvath
+    # weekly assignee attilahorvath implemented
+    # weekly assignee attilahorvath worklog
+    # weekly project ICSHWI
