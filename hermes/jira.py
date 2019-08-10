@@ -883,9 +883,11 @@ class HJira(object):
         # If report only regards user, remove project and responsible
         projects = list(d.keys())
         responsibles = list(d[projects[0]])
-        if len(projects) == 1 and len(responsibles) == 1 and self.user in d[projects[0]]:
-            aments = aments[2:]
-            aments[-1] = aments[-1][:-15]
+        if len(projects) == 1 and len(responsibles) == 1:
+            user = "".join(responsibles[0].lower().split())
+            if user == self.user:
+                aments = aments[2:]
+                aments[-1] = aments[-1][:-15]
 
         return aments
 
@@ -927,7 +929,9 @@ class HJira(object):
 
         return projects
 
-    def report(self, target_type, target, report_type, start, end, max_results):
+    def report(self, target_type, target, report_type, start, end, max_results,
+                   planned_keys=None, problems=None):
+
         if target.lower() == "all":
             projects = self.getProjects()
             issues = []
@@ -936,12 +940,14 @@ class HJira(object):
                 issues += self.getIssues("project", p, max_results, start, end)
         else:
             issues = self.getIssues(target_type, target, max_results, start, end)
+
         if report_type == "implemented":
             report = self.getImplemented(issues)
         elif report_type == "worklog":
             report = self.getWorklog(issues, start, end)
         else:
-            print("Invalid report type: {}" .format(report_type))
+            W().write("Invalid report type: {}\n" .format(report_type), "warning")
+            return
 
         aments = self.achievements(report)
         mail = "<html>"
@@ -959,6 +965,22 @@ class HJira(object):
         for a in aments:
             mail += a
 
+        if problems is not None:
+            mail += '</ul>'
+            mail += '<p>Issues:</p>'
+            mail += '<ul>'
+            problems = problems.split("| ")
+            for p in problems:
+                mail += '<li>{}</li>'.format(p)
+
+        if planned_keys is not None:
+            plans = self.getPlans(planned_keys)
+            mail += '</ul>'
+            mail += '<p>Plans for next week:</p>'
+            mail += '<ul>'
+            for p in plans:
+                mail += p
+
         mail += "</ul>"
 
         mail += '<p>Cheers,<br />'
@@ -970,7 +992,26 @@ class HJira(object):
 
         self.email(self.mailaddress, "Weekly report", mail, html=True)
 
-    def weekly(self, target_type, target, report_type="implemented"):
+    def getPlans(self, planned_keys):
+        d = {}
+        plans = []
+        for key in planned_keys.split():
+            url = 'https://jira.esss.lu.se/rest/api/2/issue/{}' .format(key)
+            response = requests.get(url, auth=self.auth, headers=self.headers)
+            if not self.response_ok(response, key):
+                return
+
+            issue = response.json()
+
+            d = self.updateDict(d, issue, self.user)
+
+        plans = self.achievements(d) #TODO: change name of def achievements
+        # plans[-1] = plans[-1][:-10]
+
+        return plans
+
+    def weekly(self, target_type, target, report_type="implemented",
+                   planned_keys=None, problems=None):
         self.login()
         if not self.loggedin:
             return
@@ -987,7 +1028,8 @@ class HJira(object):
         else:
             max_results = 300
 
-        self.report(target_type, target, report_type, start, end, max_results)
+        self.report(target_type, target, report_type, start, end, max_results,
+                        planned_keys, problems)
 
     def stop_loading(self):
         self.stop = True
