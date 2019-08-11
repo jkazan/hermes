@@ -1205,8 +1205,3 @@ reset the count and Hermes will work once again.\n""", "warning")
                                   'darwin':'open'}[sys.platform]
         # subprocess.run([imageViewerFromCommandLine, options['image_file']])
         return options['image_file']
-
-    # weekly
-    # weekly assignee=attilahorvath
-    # weekly assignee=attilahorvath report=worklog
-    # weekly project=ICSHWI report=worklog
