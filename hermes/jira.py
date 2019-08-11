@@ -13,6 +13,7 @@ import re
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import queue
 
 from graph import JiraSearch
 import textwrap
@@ -85,7 +86,6 @@ class HJira(object):
             server.login(self.user, self.auth[1])
             server.sendmail(self.mailaddress, recipient, msg.as_string())
             server.close()
-            W().write('\nCheck your email ;)\n', 'ok')
         except:
             W().write('Failed to send  mail\n', 'warning')
 
@@ -772,6 +772,8 @@ reset the count and Hermes will work once again.\n""", "warning")
 
     def getImplemented(self, issues):
         implemented = {}
+        count = 1
+        n = len(issues)
         for i in issues:
             histories = i["changelog"]["histories"]
             for h in histories:
@@ -782,12 +784,18 @@ reset the count and Hermes will work once again.\n""", "warning")
                     if from_unimplemented and to_implemented:
                         implemented = self.updateDict(
                             implemented, i, h["author"]["displayName"])
+            count += 1
 
         return implemented
 
-    def getWorklog(self, issues, start, end):
+    def getWorklog(self, issues, start, end, load_text=None):
         work = {}
+        count = 1
+        n = len(issues)
         for i in issues:
+            if load_text is not None:
+                load_text.put(
+                    "Checking worklogs: {}%" .format(int(100*count/(n))))
             url = "{}/rest/api/2/issue/{}/worklog" .format(self.url, i["key"])
             response = requests.get(url, auth=self.auth, headers=self.headers)
             log_data = response.json()
@@ -803,6 +811,7 @@ reset the count and Hermes will work once again.\n""", "warning")
                         work = self.updateDict(work, i, None, comment)
                     else:
                         work = self.updateDict(work, i, None)
+            count += 1
 
         return work
 
@@ -926,7 +935,6 @@ reset the count and Hermes will work once again.\n""", "warning")
             server.login(self.user, self.auth[1])
             server.sendmail(self.mailaddress, recipient, msg.as_string())
             server.close()
-            W().write('\nCheck your email ;)\n', 'ok')
         except:
             W().write('Failed to send  mail\n', 'warning')
 
@@ -947,21 +955,27 @@ reset the count and Hermes will work once again.\n""", "warning")
         return projects
 
     def report(self, target_type, target, report_type, start, end, max_results,
-                   planned_keys=None, problems=None):
+                   planned_keys=None, problems=None, load_text=None):
 
         if target.lower() == "all":
             projects = self.getProjects()
             issues = []
+            count = 1
+            n = len(projects)
             for project in projects:
+                load_text.put("Getting Jira issues for projects: {}%  ({})"
+                                  .format(int(100*count/n), project))
                 p = "'{}'" .format(project)
                 issues += self.getIssues("project", p, max_results, start, end)
+                count += 1
         else:
+            load_text.put("Getting Jira issues for {}..." .format(target))
             issues = self.getIssues(target_type, target, max_results, start,end)
 
         if report_type == "implemented":
             report = self.getImplemented(issues)
         elif report_type == "worklog":
-            report = self.getWorklog(issues, start, end)
+            report = self.getWorklog(issues, start, end, load_text)
         else:
             W().write("Invalid report type: {}\n" .format(report_type),
                           "warning")
@@ -1041,6 +1055,12 @@ reset the count and Hermes will work once again.\n""", "warning")
         if not self.loggedin:
             return
 
+        # Show loading
+        load_text = queue.Queue()
+        load_text.put("")
+        t = threading.Thread(target=self.loading, args=([load_text])).start()
+
+        # Set default values
         target_type = "assignee"
         target = self.user
         report_type = "implemented"
@@ -1049,11 +1069,8 @@ reset the count and Hermes will work once again.\n""", "warning")
 
         for arg in varargs:
             kw = arg.lower().split("=")
-            if kw[0] == "assignee":
-                target_type = "assignee"
-                target = kw[1]
-            elif kw[0] == "project":
-                target_type = "project"
+            if kw[0] in ["assignee", "project"]:
+                target_type = kw[0]
                 target = kw[1]
             elif kw[0] == "plans":
                 planned_keys = kw[1]
@@ -1076,15 +1093,28 @@ reset the count and Hermes will work once again.\n""", "warning")
             max_results = 300
 
         self.report(target_type, target, report_type, start, end, max_results,
-                        planned_keys, problems)
+                        planned_keys, problems, load_text)
+
+        load_text.put("Check your email ;)")
+        self.stop_loading()
 
     def stop_loading(self):
         self.stop = True
-        time.sleep(0.3)
+        time.sleep(0.5)
 
-    def loading(self):
-        load_char = '|'
+    def loading(self, a=None):
+        if a is None:
+            load_char = '|'
         while True:
+            if self.stop:
+                self.stop = False
+                print()
+                break
+
+            try:
+                load_char = a.get(timeout=1)
+            except:
+                pass
             if load_char == '|':
                 load_char = '/'
             elif load_char == '/':
@@ -1095,13 +1125,12 @@ reset the count and Hermes will work once again.\n""", "warning")
                 load_char = '/'
             elif load_char == '/':
                 load_char = '|'
-            W().write('\r{}' .format(load_char), 'task')
+
+            W().write('\r{}{}' .format(load_char, " "*(80-len(load_char))), 'task')
             sys.stdout.flush()
-            if self.stop == True:
-                self.stop = False
-                sys.stdout.flush()
-                break
-            time.sleep(0.15)
+
+            # time.sleep(0.15) #TODO: perhaps this is needed, but the the load
+            # text update is too slow for fast functions.
 
     def graph(self, ticket, shape='box'):
         self.login()
@@ -1178,7 +1207,6 @@ reset the count and Hermes will work once again.\n""", "warning")
         return options['image_file']
 
     # weekly
-    # weekly assignee attilahorvath
-    # weekly assignee attilahorvath implemented
-    # weekly assignee attilahorvath worklog
-    # weekly project ICSHWI
+    # weekly assignee=attilahorvath
+    # weekly assignee=attilahorvath report=worklog
+    # weekly project=ICSHWI report=worklog
