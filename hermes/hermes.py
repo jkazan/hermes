@@ -122,6 +122,8 @@ class CLIReactor(object):
             '          project=<project>|all'         : "E.g. weekly project=ICSHWI",
             '          assignee=<username>'           : "E.g. weekly assignee=johnsmith",
             '          report=implemented|worklog'    : "E.g. weekly report=worklog",
+            '          plans="<ticket> <ticket>..."'  : 'E.g. weekly plans="ICSWHI-1650"',
+            '          problems="<p1> | <p2>..."'     : 'E.g. weekly problems="This | That"',
             'Installation'                            : None,
             'install   e3 <install path>'             : install_e3,
             '          css <install path> [<branch>]' : install_css,
