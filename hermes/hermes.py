@@ -34,8 +34,8 @@ class CLIReactor(object):
             "subtask"       : self.hjira.subtask,
             "task"          : self.hjira.task,
             "tickets"       : self.hjira.tickets,
-            "weekly"        : self.hjira.weekly,
-            "username"      : self.hjira.username,
+            "report"        : self.hjira.report,
+            "forgetme"      : self.hjira.forgetme,
             # INSTALL #####################
             "install"       : self.hinstall.install,
             }
@@ -74,61 +74,39 @@ class CLIReactor(object):
 
     def help(self):
         """Print help text."""
-        assign_descr = 'Assign an issue to a user'
-        help_descr = 'List commands (show this message)'
-        comment_descr = 'Comment on a ticket'
-        comments_descr = 'Get all comments on a ticket'
-        email_descr = 'Send email'
-        estimate_descr = 'Change estimated effort'
-        graph_descr = 'Draw relationship graph'
-        log_descr = 'Log work to a ticket'
-        org_descr = 'Parse emacs org-mode file and log work'
-        projects_descr = 'Get a list of all Jira projects'
-        state_descr = 'Change state of ticket, e.g. backlog'
-        subtask_descr = 'Create subtask related to its parent'
-        task_descr = 'Create task'
-        quit_descr = 'Quit Hermes'
-        tickets_a_descr = 'List assignee\'s tickets'
-        tickets_p_descr = 'List project\'s tickets'
-        username_descr = 'Remember|forget username'
-        weekly_descr = 'Send weekly report email to user'
-        install_e3 = 'Install e3 with epics 7 + common mods'
-        install_css = 'Install css production|development'
-        install_plcf = 'Install plc factory'
-        install_beast = 'Install BEAST alarm handler'
-
         help_text = {
             # name                                      function
-            'Hermes'                                  : None,
-            'help'                                    : help_descr,
-            'quit'                                    : quit_descr,
-            'Jira'                                    : None,
-            'assign    <ticket> <assignee>'           : assign_descr,
-            'comment   <ticket> "<comment>"'          : comment_descr,
-            'comments  <ticket>'                      : comments_descr,
-            'email     <to> <subject> <message>'      : email_descr,
+            "Hermes"                                  : None,
+            "help"                                    : "List commands (show this message)",
+            "quit"                                    : "Quit Hermes",
+            "Jira"                                    : None,
+            "assign    <ticket> <assignee>"           : "Assign an issue to a user",
+            'comment   <ticket> "<comment>"'          : "Comment on a ticket",
+            "comments  <ticket>"                      : "Get all comments on a ticket",
+            "email     <to> <subject> <message>"      : "Send email",
             # 'estimate  <ticket> "<time>"'             : estimate_descr,
-            'graph     <ticket> [box|circle|ellipse]' : graph_descr,
-            'log       <ticket> "<time>" "<comment>"' : log_descr,
-            'org       <path to .org file>'           : org_descr,
-            'projects'                                : projects_descr,
-            'state     <ticket> "<state>"'            : state_descr,
-            'subtask   <parent> "<title>" "<effort>"' : subtask_descr,
-            'task      <summary> [<description>]'     : task_descr,
-            'tickets   [<assignee>]'                  : tickets_a_descr,
-            '          [<project> project]'           : tickets_p_descr,
-            'username  remember | forget'             : username_descr,
-            'weekly    [OPTION]...'                   : weekly_descr,
-            '          project=<project>|all'         : "E.g. weekly project=ICSHWI",
-            '          assignee=<username>'           : "E.g. weekly assignee=johnsmith",
-            '          report=implemented|worklog'    : "E.g. weekly report=worklog",
-            '          plans="<ticket> <ticket>..."'  : 'E.g. weekly plans="ICSWHI-1650"',
-            '          problems="<p1> | <p2>..."'     : 'E.g. weekly problems="This | That"',
-            'Installation'                            : None,
-            'install   e3 <install path>'             : install_e3,
-            '          css <install path> [<branch>]' : install_css,
-            '          plcfactory <install path>'     : install_plcf,
-            '          beast <install path>'          : install_beast,
+            "graph     <ticket> [box|circle|ellipse]" : "Draw relationship graph",
+            'log       <ticket> "<time>" "<comment>"' : "Log work to a ticket",
+            "org       <path to .org file>"           : "Parse emacs org-mode file and log work",
+            "projects"                                : "Get a list of all Jira projects",
+            'state     <ticket> "<state>"'            : "Change state of ticket, e.g. backlog",
+            'subtask   <parent> "<title>" "<effort>"' : "Create subtask related to its parent",
+            "task      <summary> [<description>]"     : "Create task",
+            "tickets   [<assignee>]"                  : "List assignee's tickets",
+            "          [<project> project]"           : "List project's tickets",
+            "forgetme"                                : "Delete user data",
+            "report    [OPTION]..."                   : "Send report email to user, examples:",
+            "          project=<project>|all"         : "weekly project=ICSHWI",
+            "          assignee=<username>"           : "weekly assignee=johnsmith",
+            "          type=implemented|worklog"      : "weekly type=worklog",
+            '          plans="<ticket> <ticket>..."'  : 'weekly plans="ICSWHI-1650"',
+            '          problems="<p1> | <p2>..."'     : 'weekly problems="This | That"',
+            '          dates="<from> <to>"'           : 'weekly dates="2019-08-01 2019-08-10"',
+            "Installation"                            : None,
+            "install   e3 <install path>"             : "Install e3 with epics 7 + common mods",
+            "          css <install path> [<branch>]" : "Install css production|development",
+            "          plcfactory <install path>"     : "Install plc factory",
+            "          beast <install path>"          : "Install BEAST alarm handler",
             }
 
         title = "Commands:"
