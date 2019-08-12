@@ -130,7 +130,7 @@ class JiraSearch(object):
 
         build up the GraphViz data representing relationships between
         issues. This will consider both subtasks and issue links.
-"""
+        """
         def get_key(issue):
             return issue['key']
 
