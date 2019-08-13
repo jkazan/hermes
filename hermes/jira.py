@@ -15,7 +15,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import queue
 
-from graph import JiraSearch
+from graphviz import Digraph
 import textwrap
 
 import threading
@@ -372,7 +372,7 @@ reset the count and Hermes will work once again.\n""", "warning")
         data = response.json()
         issues = data["issues"]
 
-        if self.user == "marinovojneski": #TODO: this was a quick fix for Marino
+        if key == "marinovojneski": #TODO: this was a quick fix for Marino
             for i in issues:
                 statlim = 6
                 st = i["fields"]["status"]["name"]
@@ -492,113 +492,6 @@ reset the count and Hermes will work once again.\n""", "warning")
                 ticket["parent"]["fields"]["status"]["name"] = ""
 
         return ticket
-
-
-    def ticketsold(self, key=None, target="assignee"):
-        """Lists all tickets for assigned to a user or project.
-
-        :param key: Name of Jira user or project
-        :param target: "assignee" or "project", default is "assignee"
-        """
-        self.login()
-        if not self.loggedin:
-            return
-
-        if key is None and target == "assignee":
-            key = self.user
-
-        url = "{}/rest/api/2/search?jql={}={}&maxResults=999" \
-          .format(self.url, target, key)
-
-        response = requests.get(url, auth=self.auth, headers=self.headers)
-        response_ok = self.response_ok(response)
-        if response_ok is False:
-            return
-
-        data = response.json()
-        issues = data["issues"]
-
-        if not issues:
-            W().write("No tickets found for \"{}\" \n" .format(key),"warning")
-            return
-
-        n = len(issues)
-        tickets = []
-        issue_types = []
-        progress = []
-        parent_keys = []
-        summaries = []
-        tree = []
-        orphanage = ["Orphans", ", ", "These children have no epic"]
-        has_orphanage = False
-
-        # Find all parents
-        for i in range(0, n):
-            tickets.append(issues[i]["key"])
-            issue_types.append(issues[i]["fields"]["issuetype"]["name"])
-            s = issues[i]["fields"]["summary"]
-            summaries.append(s[0:34]+"..." if len(s)>37 else s)
-
-            try:
-                p = str(issues[i]["fields"]["aggregateprogress"]["percent"])+"%"
-            except Exception:
-                p = "None"
-
-            progress.append(p)
-
-            if issue_types[i] == "Epic":
-                parent = [tickets[i], issue_types[i], progress[i], summaries[i]]
-                parent_keys.append(tickets[i])
-                tree.append((parent,[]))
-
-        for i in range(0, n):
-            if issue_types[i] == "Sub-task":
-                p = issues[i]["fields"]["parent"]
-                t = p["fields"]["issuetype"]["name"]
-                s = p["fields"]["summary"]
-                parent_key = issues[i]["fields"]["parent"]["key"]
-                if parent_key not in parent_keys:
-                    parent = [parent_key, t, "", s]
-                    parent_keys.append(parent_key)
-                    tree.append((parent,[]))
-            else:
-                parent_key = issues[i]["fields"]["customfield_10008"]
-                if not has_orphanage:
-                    has_orphanage = True
-                    tree.append((orphanage,[]))
-
-
-        # Set all children
-        for i in range(0, n):
-            parent_key = issues[i]["fields"]["customfield_10008"]
-            if parent_key is None and issue_types[i] == "Sub-task":
-                parent_key = issues[i]["fields"]["parent"]["key"]
-            elif parent_key is None and issue_types[i] != "Epic":
-                parent_key = "Orphans"
-
-            for parent, children in tree:
-                if parent[0] == parent_key:
-                    children.append(
-                        [tickets[i], issue_types[i], progress[i], summaries[i]])
-
-        # Print headers
-        W().write("{:<16s}{:<15s}{:<10s}{}\n" .format("Ticket",
-                                                  "Type",
-                                                  "Progress",
-                                                  "Summary"), "header")
-        # Print tree
-        for parent, children in tree:
-            W().write("{:<18s}{:<15s}{:<10s}{}\n" .format(parent[0],
-                                                        parent[1],
-                                                        parent[2],
-                                                        parent[3]), "epic")
-
-            for child in children:
-                W().write("   {:<15s}{:<15s}{:<10s}{}\n" .format(child[0],
-                                                            child[1],
-                                                            child[2],
-                                                            child[3]), "task")
-        return tickets, issue_types, summaries, progress
 
     def assign(self, ticket, user):
         """Assign an issue to a user.
@@ -1113,76 +1006,100 @@ reset the count and Hermes will work once again.\n""", "warning")
             W().write("\r{}{}" .format(load_char, " "*(80-len(load_char))), "task")
             sys.stdout.flush()
 
-    def graph(self, ticket, shape="box"):
+    # def graph(self, ticket, shape="box", ignore_subtasks=True):
+    # print(json.dumps(links, indent=4, separators=(",", ":")))
+    def graph(self, key, target="links"):
         self.login()
         if not self.loggedin:
             return
 
-        t = threading.Thread(target=self.loading)
-        t.daemon = False
-        t.start()
+        key = key.split()
 
-        path = os.path.dirname(os.path.abspath(__file__)) # Path to hermes dir
-        options = {
-            "cookie" : None,
-            "jira_url" : self.url,
-            "image_file" : path + "/" + ticket + "_graph.png",
-            "store_true" : False,
-            "store_true" : False,
-            "excludes" : [],
-            "closed" : False,
-            "includes" : "",
-            "show_directions" : ["inward", "outward"],
-            "directions" : ["inward", "outward"],
-            "node_shape" : shape,
-            "store_true" : False,
-            "traverse" : True,
-            "word_wrap" : False,
-            "no_verify_ssl" : False,
-            "ignore_epic" : False,
-            "ignore_subtasks" : True,
-            "local" : False,
-            }
+        u = Digraph('unix', filename='unix.gv')
+        u.attr(size='6,6')
+        u.node_attr.update(color='lightblue2', style='filled')
 
-        jira = JiraSearch(options["jira_url"],
-                              self.auth,
-                              options["no_verify_ssl"])
+        # Show loading
+        load_text = queue.Queue()
+        load_text.put("")
+        t = threading.Thread(target=self.loading, args=([None])).start()
 
-        try:
-            graph = jira.build_graph_data(ticket,
-                                          jira,
-                                          options["excludes"],
-                                          options["show_directions"],
-                                          options["directions"],
-                                          options["includes"],
-                                          options["closed"],
-                                          options["ignore_epic"],
-                                          options["ignore_subtasks"],
-                                          options["traverse"],
-                                          options["word_wrap"])
-        except requests.exceptions.HTTPError:
-            W().write("Dang, something went wrong\n", "warning")
-            self.stop_loading()
-            return None
+        u = self.grapha(key, u, target)
 
-        if options["local"]:
-            # jira.print_graph(jira.filter_duplicates(graph),
-            #                      options["node_shape"])
-            jira.print_graph(graph, options["node_shape"])
-        else:
-            # jira.create_graph_image(jira.filter_duplicates(graph),
-            #                        options["image_file"],
-            #                        options["node_shape"])
-            jira.create_graph_image(graph,
-                                        options["image_file"],
-                                        options["node_shape"])
-
+        u.save("./graph")
         self.stop_loading()
-        W().write("Saved image to {}\n"
-                          .format(options["image_file"]), "ok")
+        u.view()
+    def grapha(self, keys, u, target): # graph ICSHWI-1644
+        if type(keys) is not list:
+            keys = [keys]
 
-        imageViewerFromCommandLine = {"linux":"xdg-open",
-                                  "win32":"explorer",
-                                  "darwin":"open"}[sys.platform]
-        # subprocess.run([imageViewerFromCommandLine, options["image_file"]])
-        return options["image_file"]
+        for k in keys:
+            url = "{}/rest/api/latest/issue/{}" .format(self.url, k)
+
+            response = requests.get(url, auth=self.auth, headers=self.headers)
+            if not self.response_ok(response, k):
+                return
+
+            this_sum = response.json()["fields"]["summary"]
+
+            if target == "subtasks" or target == "all":
+                subtasks = response.json()["fields"]["subtasks"]
+                for s in subtasks:
+                    try:
+                        inward = "subtask of"
+                        inward_key = s["key"]
+                        summary = s["fields"]["summary"]
+                        status = s["fields"]["status"]["name"]
+                        u.attr("node", color=self.nodeColor(status))
+                        u.edge("{}\n{}" .format(inward_key, summary),
+                                   "{}\n{}" .format(k, this_sum), label=inward)
+                    except:
+                        pass
+
+                    try:
+                        outward = "parent to"
+                        outward_key = s["key"]
+                        summary = s["fields"]["summary"]
+                        status = s["fields"]["status"]["name"]
+                        u.attr("node", color=self.nodeColor(status))
+                        u.edge("{}\n{}" .format(k, this_sum),
+                                   "{}\n{}" .format(outward_key, summary),
+                                   label=outward)
+                        u = self.grapha(outward_key, u)
+                    except:
+                        pass
+
+            if target == "links" or target == "all":
+                links = response.json()["fields"]["issuelinks"]
+                for l in links:
+                    try:
+                        inward = l["type"]["inward"]
+                        inward_key = l["inwardIssue"]["key"]
+                        summary = l["inwardIssue"]["fields"]["summary"]
+                        status = l["inwardIssue"]["fields"]["status"]["name"]
+                        u.attr("node", color=self.nodeColor(status))
+                        u.edge("{}\n{}" .format(inward_key, summary),
+                                   "{}\n{}" .format(k, this_sum), label=inward)
+                    except:
+                        pass
+
+                    try:
+                        outward = l["type"]["outward"]
+                        outward_key = l["outwardIssue"]["key"]
+                        summary = l["outwardIssue"]["fields"]["summary"]
+                        status = l["outwardIssue"]["fields"]["status"]["name"]
+                        u.attr("node", color=self.nodeColor(status))
+                        u.edge("{}\n{}" .format(outward_key, summary),
+                                   "{}\n{}" .format(k, this_sum), label=outward)
+                        u = self.grapha(outward_key, u)
+                    except:
+                        pass
+        return u
+
+    def nodeColor(self, status):
+        if status == "Backlog":
+            return "lightblue2"
+        elif status == "In Progress":
+            return "gold"
+        elif status == "Implemented":
+            return "limegreen"
