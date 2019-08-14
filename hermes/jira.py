@@ -286,9 +286,9 @@ class HJira(object):
             return
 
         url = "{}/rest/api/2/issue/{}/worklog" .format(self.url, ticket)
-        payload = "{'timeSpent':'"+time+"','comment':'"+comment+"'}"
+        payload = {"timeSpent" : time, "comment" : comment}
         response = requests.post(url, auth=self.auth, headers=self.headers,
-                                     data=payload.encode("utf8"))
+                                     data=json.dumps(payload))
 
         self.response_ok(response, ticket)
 
@@ -530,7 +530,7 @@ reset the count and Hermes will work once again.\n""", "warning")
         path = os.path.expanduser(path)
 
         if not os.path.exists(path):
-            W().write("File \"{}\" does not exist\n" .format(path), "warning")
+            W().write("File '{}' does not exist\n" .format(path), "warning")
             return
 
         with open(path) as f:
@@ -846,7 +846,7 @@ reset the count and Hermes will work once again.\n""", "warning")
         # Create email
         mail = "<html>"
         mail += "<p>Dear {},</p>" \
-          .format(self.lm_mailaddress.split(".")[0].title())
+          .format(self.lm_name.split(".")[0].title())
 
         if report:
             aments = self.achievements(report)
@@ -1006,29 +1006,98 @@ reset the count and Hermes will work once again.\n""", "warning")
             W().write("\r{}{}" .format(load_char, " "*(80-len(load_char))), "task")
             sys.stdout.flush()
 
-    # def graph(self, ticket, shape="box", ignore_subtasks=True):
+    # def graph(self, key):
+    #     self.login()
+    #     if not self.loggedin:
+    #         return
+
+    #     url = "{}/rest/api/latest/issue/{}" .format(self.url, key)
+
+    #     response = requests.get(url, auth=self.auth, headers=self.headers)
+    #     if not self.response_ok(response, key):
+    #         return
+
+    #     issue = response.json()
+    #     # print(json.dumps(issue, indent=4, separators=(",", ":")))
+    #     # return
+
+    #     if issue["fields"]["issuetype"]["name"] == "Epic":
+    #         fields = ','.join(['key',
+    #                            'summary',
+    #                            'status',
+    #                            'description',
+    #                            'issuetype',
+    #                            'issuelinks',
+    #                            'subtasks'])
+
+    #         query = '"Epic Link" = "{}"' .format(key)
+    #         headers = {'Content-Type' : 'application/json'}
+    #         url = "{}/rest/api/latest/issue/search" .format(self.url)
+    #         response = requests.get(url,
+    #                                  params={'jql': query},#, 'fields': fields
+    #                                  auth=self.auth,
+    #                                  headers=headers,
+    #                                  verify=True)
+
+    #         content = response.json()
+    #         # issues =  content['issues']
+
+    #         print(json.dumps(content, indent=4, separators=(",", ":")))
+    def has_edge(self, graph, v1, v2):
+        tail_name = graph._quote_edge(v1)
+        head_name = graph._quote_edge(v2)
+        return (graph._edge % (tail_name, head_name, '')) in graph.body
+
     # print(json.dumps(links, indent=4, separators=(",", ":")))
-    def graph(self, key, target="links"):
+    def graph(self, key, target="subtasks"):
         self.login()
         if not self.loggedin:
             return
 
         key = key.split()
 
-        u = Digraph('unix', filename='unix.gv')
+        u = Digraph('unix', filename='unix.gv', strict=True)
         u.attr(size='6,6')
         u.node_attr.update(color='lightblue2', style='filled')
 
         # Show loading
-        load_text = queue.Queue()
-        load_text.put("")
         t = threading.Thread(target=self.loading, args=([None])).start()
 
         u = self.grapha(key, u, target)
 
-        u.save("./graph")
         self.stop_loading()
-        u.view()
+
+        path = os.path.dirname(os.path.abspath(__file__))
+        choice = input("Do you want to save the graph in {}? [Y/n]: "
+                           .format(path)).lower()
+        while True:
+            if choice in ["y", "yes"]:
+                u.render("{}/graph.gv" .format(path), view=False)
+                break
+            elif choice in ["n", "no"]:
+                while True:
+                    path = input("Where do you want to save the graph?: ").lower()
+                    if os.path.isdir(path):
+                        u.render("{}/graph.gv" .format(path), view=False)
+                        break
+                    else:
+                        W().write("Invalid directory\n", "warning")
+                break
+            else:
+                W().write("Please answer yes or no: ", "warning")
+                choice = input("").lower()
+
+        choice = input("Would you like to view the graph? [Y/n]: ").lower()
+        while True:
+            if choice in ["y", "yes"]:
+                u.view()
+                break
+            elif choice in ["n", "no"]:
+                break
+            else:
+                W().write("Please answer yes or no: ", "warning")
+                choice = input("").lower()
+
     def grapha(self, keys, u, target): # graph ICSHWI-1644
         if type(keys) is not list:
             keys = [keys]
@@ -1039,51 +1108,47 @@ reset the count and Hermes will work once again.\n""", "warning")
             response = requests.get(url, auth=self.auth, headers=self.headers)
             if not self.response_ok(response, k):
                 return
-
+            # print(json.dumps(response.json()["fields"], indent=4, separators=(",", ":")))
             this_sum = response.json()["fields"]["summary"]
-
-            if target == "subtasks" or target == "all":
+            fields = response.json()["fields"]
+            if "subtasks" in fields and (target == "subtasks" or target == "all"):
                 subtasks = response.json()["fields"]["subtasks"]
                 for s in subtasks:
-                    try:
-                        inward = "subtask of"
-                        inward_key = s["key"]
-                        summary = s["fields"]["summary"]
-                        status = s["fields"]["status"]["name"]
-                        u.attr("node", color=self.nodeColor(status))
-                        u.edge("{}\n{}" .format(inward_key, summary),
-                                   "{}\n{}" .format(k, this_sum), label=inward)
-                    except:
-                        pass
+                        # inward = "subtask of"
+                        # inward_key = s["key"]
+                        # summary = s["fields"]["summary"]
+                        # status = s["fields"]["status"]["name"]
+                        # u.attr("node", color=self.nodeColor(status))
+                        # u.edge("{}\n{}" .format(inward_key, summary),
+                        #            "{}\n{}" .format(k, this_sum), label=inward)
 
-                    try:
                         outward = "parent to"
                         outward_key = s["key"]
                         summary = s["fields"]["summary"]
                         status = s["fields"]["status"]["name"]
                         u.attr("node", color=self.nodeColor(status))
                         u.edge("{}\n{}" .format(k, this_sum),
-                                   "{}\n{}" .format(outward_key, summary),
-                                   label=outward)
-                        u = self.grapha(outward_key, u)
-                    except:
-                        pass
+                                   "{}\n{}" .format(outward_key, summary))
+                        u = self.grapha(outward_key, u, target)
 
-            if target == "links" or target == "all":
-                links = response.json()["fields"]["issuelinks"]
+                        if self.has_edge(u, outward_key, k):
+                            print("found")
+                        # if (inward_key, k) in u.edges():
+                        #     print("sub: {}   k: {}" .format(inward_key, k))
+
+            if "issuelinks" in fields and (target == "links" or target == "all"):
+                links = fields["issuelinks"]
                 for l in links:
-                    try:
-                        inward = l["type"]["inward"]
-                        inward_key = l["inwardIssue"]["key"]
-                        summary = l["inwardIssue"]["fields"]["summary"]
-                        status = l["inwardIssue"]["fields"]["status"]["name"]
-                        u.attr("node", color=self.nodeColor(status))
-                        u.edge("{}\n{}" .format(inward_key, summary),
-                                   "{}\n{}" .format(k, this_sum), label=inward)
-                    except:
-                        pass
+                    # if "inwardIssue" in l:
+                    #     inward = l["type"]["inward"]
+                    #     inward_key = l["inwardIssue"]["key"]
+                    #     summary = l["inwardIssue"]["fields"]["summary"]
+                    #     status = l["inwardIssue"]["fields"]["status"]["name"]
+                    #     u.attr("node", color=self.nodeColor(status))
+                    #     u.edge("{}\n{}" .format(inward_key, summary),
+                    #                "{}\n{}" .format(k, this_sum), label=inward)
 
-                    try:
+                    if "outwardIssue" in l:
                         outward = l["type"]["outward"]
                         outward_key = l["outwardIssue"]["key"]
                         summary = l["outwardIssue"]["fields"]["summary"]
@@ -1091,9 +1156,10 @@ reset the count and Hermes will work once again.\n""", "warning")
                         u.attr("node", color=self.nodeColor(status))
                         u.edge("{}\n{}" .format(outward_key, summary),
                                    "{}\n{}" .format(k, this_sum), label=outward)
-                        u = self.grapha(outward_key, u)
-                    except:
-                        pass
+                        u = self.grapha(outward_key, u, target)
+                        # if (inward_key, k) in u.edges():
+                        #     print("link: {}   k: {}" .format(inward_key, k))
+
         return u
 
     def nodeColor(self, status):
