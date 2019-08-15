@@ -43,10 +43,15 @@ class HJira(object):
 
         if os.path.isfile(path+"/"+self.user_file):
             with open(path+"/"+self.user_file, "r") as fr:
-                json_data = json.load(fr)
-                self.user = json_data["user"]
-                self.mailaddress = json_data["email"]
-                self.lm_name = json_data["lm_name"]
+                try:
+                    json_data = json.load(fr)
+                    self.user = json_data["user"]
+                    self.mailaddress = json_data["email"]
+                    self.lm_name = json_data["lm_name"]
+                except:
+                    self.forgetme(False)
+                    self.store_user()
+                    return
         else:
             first = input("First name: ").lower()
             last = input("Last name: ").lower()
@@ -114,12 +119,14 @@ class HJira(object):
         return
 
 
-    def forgetme(self):
+    def forgetme(self, verbose=True):
         """ Deletes user data. """
         path = os.path.dirname(os.path.abspath(__file__))
 
         os.remove(path+"/"+self.user_file)
-        W().write("{} has been forgotten\n" .format(self.user), "ok")
+
+        if verbose:
+            W().write("{} has been forgotten\n" .format(self.user), "ok")
 
     def state(self, ticket, state):
         self.login()
