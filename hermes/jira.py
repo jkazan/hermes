@@ -3,7 +3,12 @@ from datetime import datetime, timedelta
 import os
 import sys
 import subprocess
-import readline
+
+try:
+  import readline
+except ImportError:
+  import pyreadline as readline
+
 import json
 from terminal import Write as W
 import requests
@@ -1037,9 +1042,9 @@ reset the count and Hermes will work once again.\n""", "warning")
         t = threading.Thread(target=self.loading, args=([load_text])).start()
 
         # Make graph
-        u = Digraph('unix', filename='unix.gv', strict=True)
-        u.attr(size='6,6')
-        u.node_attr.update(color='lightblue2', style='filled')
+        u = Digraph("unix", filename="unix.gv", strict=True, format="pdf")
+        u.attr(size="6,6")
+        u.node_attr.update(color="lightblue2", style="filled")
         u = self.grapha(key, u, target, load_text)
 
         # Stop loading
@@ -1106,16 +1111,16 @@ reset the count and Hermes will work once again.\n""", "warning")
                     # u.edge("{}\n{}" .format(inward_key, summary),
                     #            "{}\n{}" .format(key, this_sum), label=inward)
 
-                    outward = "parent to"
-                    outward_key = s["key"]
-                    su = s["fields"]["summary"]
-                    summary = su[0:sumlim]+"..." if len(su)>sumlim+3 else su
+                outward = "parent to"
+                outward_key = s["key"]
+                su = s["fields"]["summary"]
+                summary = su[0:sumlim]+"..." if len(su)>sumlim+3 else su
 
-                    status = s["fields"]["status"]["name"]
-                    u.attr("node", color=self.nodeColor(status))
-                    u.edge("{}\n{}" .format(key, this_sum),
-                               "{}\n{}" .format(outward_key, summary))
-                    u = self.grapha(outward_key, u, target, load_text)
+                status = s["fields"]["status"]["name"]
+                u.attr("node", color=self.nodeColor(status))
+                u.edge("{}\n{}" .format(key, this_sum),
+                           "{}\n{}" .format(outward_key, summary))
+                u = self.grapha(outward_key, u, target, load_text)
 
         if "issuelinks" in fields and (target == "links" or target == "all"):
             links = fields["issuelinks"]
