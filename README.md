@@ -26,8 +26,8 @@ Go to [`python.org`](https://docs.python.org/downloads/windows) and download lat
 
 ##### Install
 Download hermes
-Open cmd (search for "cmd" in start menu)
-type:
+
+Open Command Prompt (search for "cmd" in start menu) and type:
 ```sh
 cd <path to hermes, e.g. C:\Users\johnsmith\hermes-master>
 python setup.py install
