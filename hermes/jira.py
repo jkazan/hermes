@@ -231,7 +231,7 @@ class HJira(object):
             return
 
         url = "{}/rest/api/latest/issue/{}/comment" .format(self.url, ticket)
-        payload = "{'body':'"+comment+"'}"
+        payload = '{"body":"'+comment+'"}'
         response = requests.post(url, auth=self.auth,
                                      headers=self.headers,
                                      data=payload.encode("utf8"))
