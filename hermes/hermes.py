@@ -6,7 +6,10 @@ from terminal import Write, Color
 from jira import HJira
 from install import HInstall
 
-import readline
+try:
+  import readline
+except ImportError:
+  import pyreadline as readline
 
 class CLIReactor(object):
     """Hermes Command Line Interface."""
