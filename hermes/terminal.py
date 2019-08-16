@@ -50,6 +50,7 @@ class Color(object):
         else:
             return string
 
+import os
 import sys
 class Write(object):
     colors = {
@@ -69,4 +70,7 @@ class Write(object):
         :param string: String to print
         :param color: Font color, default is 'regular'
         """
-        sys.stdout.write(self.colors[color](str(string)))
+        if os.name == 'nt':
+            sys.stdout.write(str(string))
+        else:
+            sys.stdout.write(self.colors[color](str(string)))
