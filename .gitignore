@@ -5,3 +5,5 @@ jira_cli.user
 \#*
 .\#*
 *.bak
+*.gv
+*.pdf
