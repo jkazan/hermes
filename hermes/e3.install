@@ -21,14 +21,12 @@ main() {
 
     # Configure for EPICS 7
     # yes Y | sudo -u $SUDO_USER bash e3_building_config.bash -t $E3DIR -b 7.0.1.1 setup
-    read -rp "EPICS version: " -n 9
-    # yes Y | bash e3_building_config.bash -t $E3DIR -b $REPLY setup
-    bash e3_building_config.bash -t $E3DIR -b $REPLY setup
+    read -r "EPICS version: " -n 9
+    yes Y | bash e3_building_config.bash -t $E3DIR -b $REPLY setup
 
     # Install base within the e3 directory
     # yes Y | sudo -u $SUDO_USER ./e3.bash base
-    # yes Y | ./e3.bash base
-    ./e3.bash base
+    yes Y | ./e3.bash base
 
     # Install require within the e3 directory
     ./e3.bash req
@@ -43,18 +41,20 @@ main() {
     git clone https://github.com/icshwi/e3-tools
 
     # Tip
+    echo
+    echo
     echo "Tip: Put aliases in your .bashrc file..."
     echo
     echo "alias e3=\"source $E3DIR/base-7.0.3/require/3.1.0/bin/setE3Env.bash no_msg\""
-    echo "alias e3get=\"~/e3-aug06/e3/caget_pvs.bash\""
-    echo "alias iocsh=\"/home/jkazan/e3-aug06/e3/e3-require/tools/iocsh.bash\""
+    echo "alias e3get=\"$E3DIR/e3/caget_pvs.bash\""
+    echo "alias iocsh=\"$E3DIR/e3/e3-require/tools/iocsh.bash\""
 }
 
 E3DIR=$1
 
 if [ ! -d "$E3DIR" ] ; then
     echo -n "$E3DIR directory not found. "
-    read -rp $"Would you like to create it [Y\n]? " -n 1
+    read -r $"Would you like to create it [Y\n]? " -n 1
     echo
     if [[ "$REPLY" == [Yy] ]] ; then
         main
