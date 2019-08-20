@@ -23,11 +23,11 @@ class CLIReactor(object):
             # HERMES ######################
             "help"          : self.help,
             "quit"          : self.quit,
+            "email"         : self.hjira.email,
             # JIRA ########################
             "assign"        : self.hjira.assign,
             "comment"       : self.hjira.comment,
             "comments"      : self.hjira.comments,
-            "email"         : self.hjira.email,
             # "estimate"      : self.hjira.estimate,
             "graph"         : self.hjira.graph,
             "log"           : self.hjira.log,
@@ -80,13 +80,13 @@ class CLIReactor(object):
         help_text = {
             # name                                      function
             "Hermes"                                  : None,
+            "email     <to> <subject> <message>"      : "Send email",
             "help"                                    : "List commands (show this message)",
             "quit"                                    : "Quit Hermes",
             "Jira"                                    : None,
             "assign    <ticket> <assignee>"           : "Assign an issue to a user",
             'comment   <ticket> "<comment>"'          : "Comment on a ticket",
             "comments  <ticket>"                      : "Get all comments on a ticket",
-            "email     <to> <subject> <message>"      : "Send email",
             # 'estimate  <ticket> "<time>"'             : estimate_descr,
             "graph     <ticket> links|subtasks|all"   : "Draw relationship graph",
             "          [<path to save graph>]"        : "Default is current path",
