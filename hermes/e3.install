@@ -21,7 +21,7 @@ main() {
 
     # Configure for EPICS 7
     # yes Y | sudo -u $SUDO_USER bash e3_building_config.bash -t $E3DIR -b 7.0.1.1 setup
-    read -r "EPICS version: " -n 9
+    read -rp "EPICS version: " -n 9
     yes Y | bash e3_building_config.bash -t $E3DIR -b $REPLY setup
 
     # Install base within the e3 directory
@@ -54,7 +54,7 @@ E3DIR=$1
 
 if [ ! -d "$E3DIR" ] ; then
     echo -n "$E3DIR directory not found. "
-    read -r $"Would you like to create it [Y\n]? " -n 1
+    read -rp $"Would you like to create it [Y\n]? " -n 1
     echo
     if [[ "$REPLY" == [Yy] ]] ; then
         main
