@@ -51,8 +51,8 @@ class HInstall(object):
 
             try:
                 Write().write('Installing {}\n' .format(tool), 'task')
-                ret_code = subprocess.check_call('sudo {}/e3.install {}'
-                                                     .format(path, dest),
+                ret_code = subprocess.check_call('{}/e3.install {} opt'
+                                                     .format(path, dest, opt),
                                                      shell=True)
             except subprocess.CalledProcessError as e:
                 Write().write(e, 'warning')
