@@ -39,6 +39,13 @@ main() {
     # Clone e3-tools
     # sudo -u $SUDO_USER git clone https://github.com/icshwi/e3-tools
     git clone https://github.com/icshwi/e3-tools
+
+    # Tip
+    echo "Tip: Put aliases in your .bashrc file..."
+    echo
+    echo "alias e3=\"source $E3DIR/base-7.0.3/require/3.1.0/bin/setE3Env.bash no_msg\""
+    echo "alias e3get=\"~/e3-aug06/e3/caget_pvs.bash\""
+    echo "alias iocsh=\"/home/jkazan/e3-aug06/e3/e3-require/tools/iocsh.bash\""
 }
 
 E3DIR=$1
