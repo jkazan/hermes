@@ -21,7 +21,7 @@ main() {
 
     # Configure for EPICS 7
     # yes Y | sudo -u $SUDO_USER bash e3_building_config.bash -t $E3DIR -b 7.0.1.1 setup
-    read -rp "EPICS version: " -n 1
+    read -rp "EPICS version: " -n 9
     yes Y | bash e3_building_config.bash -t $E3DIR -b $REPLY setup
 
     # Install base within the e3 directory
