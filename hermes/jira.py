@@ -236,8 +236,8 @@ class HJira(object):
                                      headers=self.headers,
                                      data=payload.encode("utf8"))
 
-        self.response_ok(response, ticket)
-        self.comments(ticket)
+        if self.response_ok(response, ticket):
+            self.comments(ticket)
 
     def comments(self, ticket):
         """Get comments on a Jira ticket.
