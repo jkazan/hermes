@@ -237,6 +237,7 @@ class HJira(object):
                                      data=payload.encode("utf8"))
 
         self.response_ok(response, ticket)
+        self.comments(ticket)
 
     def comments(self, ticket):
         """Get comments on a Jira ticket.
@@ -1150,9 +1151,10 @@ reset the count and Hermes will work once again.\n""", "warning")
     def nodeColor(self, status):
         if status == "Backlog":
             return "lightblue2"
-        elif status == "In Progress":
+        elif status in ["In Progress", "Open"]:
             return "gold"
-        elif status in ["Implemented", "Done"]:
+        elif status in ["Implemented", "Done", "Closed"]:
             return "limegreen"
         else:
+            print(status)
             return "gray"
