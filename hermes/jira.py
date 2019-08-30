@@ -867,7 +867,7 @@ reset the count and Hermes will work once again.\n""", "warning")
             if target.lower() == "all":
                 greeting = "ESS achievements:"
             elif target_type.lower() == "project":
-                greeting = "{} achievements:" .format(target)
+                greeting = "{} achievements:" .format(target.upper())
             else:
                 greeting = "Achievements:"
 
@@ -887,7 +887,7 @@ reset the count and Hermes will work once again.\n""", "warning")
         if planned_keys is not None:
             plans = self.getPlans(planned_keys)
             mail += "</ul>"
-            mail += "<p>Plans for next week:</p>"
+            mail += "<p>Next steps:</p>"
             mail += "<ul>"
             for p in plans:
                 mail += p
