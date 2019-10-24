@@ -1,0 +1,70 @@
+#!/bin/bash
+
+DATE=$1
+VER=$2
+DIR=$3
+JAVA=$4
+
+#######################################
+# Main function
+# Globals:
+#   DATE - release date of desired phoebus version
+#   VER  - version number
+#   DIR  - installation target dir
+#   JAVA - path to java
+# Arguments:
+#   None
+# Returns:
+#   None
+#######################################
+main() {
+    # Create directory for phoebus
+    mkdir -p $DIR
+    cd $DIR
+
+    FILE="phoebus-$VER-linux.zip"
+
+    # Download phoebus from artifactory
+    wget http://artifactory.esss.lu.se/artifactory/CS-Studio-Phoebus/$DATE/$FILE
+
+    # Unpack
+    unzip $FILE
+
+    # Delete zip file
+    rm $FILE
+
+    # Create .ini file and launch file
+    cd phoebus-$VER
+    echo "org.phoebus.pv.ca/addr_list=10.0.16.85" > phoebus.ini
+    echo "$JAVA -jar $DIR/phoebus-$VER/product-$VER.jar -settings $DIR/phoebus-$VER/phoebus.ini -nosplash
+" > launch_phoebus.sh
+
+    # Tip
+    echo
+    echo
+    echo "Tip: Put aliases in your .bashrc file..."
+    echo
+    echo "alias phoebus=\"bash $DIR/phoebus-$VER/launch_phoebus.sh\""
+}
+
+
+if [ ! -f $JAVA ]; then
+    echo "Java not found in provided path. Aborting."
+    exit 1
+fi
+
+if [ ! -d "$DIR" ] ; then
+    echo -n "$DIR directory not found. "
+    read -rp $"Would you like to create it [Y\n]? " -n 1
+    echo
+    if [[ "$REPLY" == [Yy] ]] ; then
+        main
+    else
+        exit 0
+    fi
+else
+    main
+fi
+
+
+# install phoebus ~/test ~/jdk-13.0.1/bin/java

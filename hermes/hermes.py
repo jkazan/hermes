@@ -111,6 +111,7 @@ class CLIReactor(object):
             "          css <install path> [<branch>]" : "Install css production|development",
             "          plcfactory <install path>"     : "Install plc factory",
             "          beast <install path>"          : "Install BEAST alarm handler",
+            "          phoebus <install path> <java>" : "Install Phoebus",
             }
 
         title = "Commands:"

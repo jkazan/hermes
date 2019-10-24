@@ -194,6 +194,50 @@ class HInstall(object):
                            +'alias css=\'{}/cs-studio/ESS\ CS-Studio\'\n'
                            .format(dest), 'tip')
 
+        elif tool == 'phoebus':
+            url = 'https://artifactory.esss.lu.se/artifactory/CS-Studio-Phoebus/'
+            pattern = re.compile("[0-9]+-[0-9]+-[0-9]+")
+
+            params = {'q': 'ISOW7841FDWER'}
+            headers = {'User-Agent': 'Mozilla/5'}
+            r = requests.get(url, params=params, headers=headers)
+
+            # Cast to set and back to list to make it unique
+            dates = set(pattern.findall(r.text))
+            dates = list(dates)
+            dates.sort(key=LooseVersion)
+
+            url += dates[-1] + "/"
+
+            r = requests.get(url, params=params, headers=headers)
+
+            pattern = re.compile("[0-9]+\.[0-9]+\.[0-9]+")
+            versions = set(pattern.findall(r.text))
+            versions = list(versions)
+            versions.sort(key=LooseVersion)
+
+            url += versions[-2]
+            cmd = "bash phoebus.install {} {} {} {}".format(
+                dates[-1], versions[-2], dest, opt)
+
+            ret_code = subprocess.check_call(cmd, shell=True)
+            # # Check if already installed
+            # if os.path.exists(dest+'/phoebus'):
+            #     overwrite = input('phoebus found in the destination directory. '
+            #                        +'Overwrite? [Y/n]: ').lower()
+            #     if not overwrite == "y":
+            #         return
+
+            # try:
+            #     Write().write('Installing {}\n' .format(tool), 'task')
+            #     ret_code = subprocess.check_call('{}/phoebus.install {} {}'
+            #                                          .format(path, dest, opt),
+            #                                          shell=True)
+            # except subprocess.CalledProcessError as e:
+            #     Write().write(e, 'warning')
+            #     print()
+            #     return
+
         else:
             Write().write('\'{}\' is not available for installation\n'
                            .format(tool), 'warning')
