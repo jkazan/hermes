@@ -65,6 +65,3 @@ if [ ! -d "$DIR" ] ; then
 else
     main
 fi
-
-
-# install phoebus ~/test ~/jdk-13.0.1/bin/java
