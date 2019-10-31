@@ -361,7 +361,7 @@ reset the count and Hermes will work once again.\n""", "warning")
 
         return False
 
-    def tickets(self, key=None, target="assignee"):
+    def tickets(self, key=None, target="assignee"): #TODO: Cleanup!
         """Lists all tickets for assigned to a user or project.
 
         :param key: Name of Jira user or project
@@ -385,126 +385,181 @@ reset the count and Hermes will work once again.\n""", "warning")
         data = response.json()
         issues = data["issues"]
 
-        if key == "marinovojneski": #TODO: this was a quick fix for Marino
-            for i in issues:
-                statlim = 6
-                st = i["fields"]["status"]["name"]
-                status = st[0:statlim]+"." if len(st)>statlim else st
-
-                try:
-                    prog = str(i["fields"]["aggregateprogress"]["percent"]) + "%"
-                except:
-                    prog = ""
-
-                s = i["fields"]["summary"]
-                sumlim = 31
-                summary = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
-
-                W().write("{:<16s}{:<14s}{:<9s}{:<7s}{}\n"
-                            .format(i["key"],
-                                        i["fields"]["issuetype"]["name"],
-                                        status,
-                                        prog,
-                                        summary))
-            return
-
-        if not issues:
-            W().write("No tickets found for \"{}\" \n" .format(key),"warning")
-            return
-
         tickets = {}
-        # Find all parents
-        for i in range(0, len(issues)):
-            key = issues[i]["key"]
-            fields = issues[i]["fields"]
-            tickets[key] = self.makeTicket(key, fields)
 
-        for i in range(0, len(issues)):
-            key = issues[i]["key"]
-            if tickets[key]["parent"] is not None:
-                if tickets[key]["parent"]["key"] not in tickets:
-                    new_key = tickets[key]["parent"]["key"]
-                    new_fields = tickets[key]["parent"]["fields"]
-                    tickets[new_key] = self.makeTicket(new_key, new_fields, True)
+        rem = []
+        # EPICS
+        for i in issues:
+            statlim = 6
+            st = i["fields"]["status"]["name"]
+            status = st[0:statlim]+"." if len(st)>statlim else st
 
-        # Print headers
-        W().write("{:<16s}{:<14s}{:<9s}{:<7s}{}\n" .format("Ticket",
-                                                  "Type",
-                                                  "Status",
-                                                  "Prog.",
-                                                  "Summary"), "header")
+            try:
+                prog = str(i["fields"]["aggregateprogress"]["percent"]) + "%"
+            except:
+                prog = ""
 
-        # TODO: slow sorting, fix!
-        for key, data in tickets.items():
-            if data["parent"] is None:
-                W().write("{:<16s}{:<14s}{:<9s}{:<7s}{}\n" .format(key,
-                                                        data["issuetype"],
-                                                        data["status"],
-                                                        data["progress"],
-                                                        data["summary"]),"epic")
-                for k, d in tickets.items():
-                    try:
-                        if d["parent"]["key"] == key:
-                            W().write("  {:<14s}{:<14s}{:<9s}{:<7s}{}\n" \
-                                          .format(k,
-                                              d["issuetype"],
-                                              d["status"],
-                                              d["progress"],
-                                              d["summary"]), "task")
-                    except:
-                        pass
+            s = i["fields"]["summary"]
+            sumlim = 31
+            summary = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
+
+            if i["fields"]["issuetype"]["name"] == "Epic" and i["key"] not in tickets:
+                tickets[i["key"]] = {
+                    "issue_type" : i["fields"]["issuetype"]["name"],
+                    "status" : status,
+                    "progress" : prog,
+                    "summary" : summary,
+                    "children" : {},
+                    }
+                rem.append(i)
+
+        for r in rem:
+            issues.remove(r)
+        rem = []
+
+        # Epic children
+        for i in issues:
+            st = i["fields"]["status"]["name"]
+            status = st[0:statlim]+"." if len(st)>statlim else st
+
+            try:
+                prog = str(i["fields"]["aggregateprogress"]["percent"]) + "%"
+            except:
+                prog = ""
+
+            s = i["fields"]["summary"]
+            sumlim = 31
+            summary = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
+
+            if i["fields"]["customfield_10008"]:
+                child = {
+                    "issue_type" : i["fields"]["issuetype"]["name"],
+                    "status" : status,
+                    "progress" : prog,
+                    "summary" : summary,
+                    "children" : {},
+                    }
+
+                tickets[i["fields"]["customfield_10008"]]["children"][i["key"]] = child
+                rem.append(i)
+
+        for r in rem:
+            issues.remove(r)
+        rem = []
+
+        # Task parents
+        for i in issues:
+            st = i["fields"]["status"]["name"]
+            status = st[0:statlim]+"." if len(st)>statlim else st
+
+            try:
+                prog = str(i["fields"]["aggregateprogress"]["percent"]) + "%"
+            except:
+                prog = ""
+
+            s = i["fields"]["summary"]
+            sumlim = 31
+            summary = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
+
+            if i["fields"]["issuetype"]["name"].lower() == "task":
+                tickets[i["key"]] = {
+                    "issue_type" : i["fields"]["issuetype"]["name"],
+                    "status" : status,
+                    "progress" : prog,
+                    "summary" : summary,
+                    "children" : {},
+                    }
+                rem.append(i)
+
+        for r in rem:
+            issues.remove(r)
+        rem = []
+
+        # Subtasks
+        for i in issues:
+            st = i["fields"]["status"]["name"]
+            status = st[0:statlim]+"." if len(st)>statlim else st
+
+            try:
+                prog = str(i["fields"]["aggregateprogress"]["percent"]) + "%"
+            except:
+                prog = ""
+
+            s = i["fields"]["summary"]
+            sumlim = 31
+            summary = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
+
+            if "parent" in i["fields"]:
+                parent = i["fields"]["parent"]["key"]
+                child = {
+                    "issue_type" : i["fields"]["issuetype"]["name"],
+                    "status" : status,
+                    "progress" : prog,
+                    "summary" : summary,
+                    }
+                if parent in tickets:
+                    tickets[parent]["children"][i["key"]] = child
+                    rem.append(i)
+                    continue
+
+                for key in tickets:
+                    if parent in tickets[key]["children"]:
+                        tickets[key]["children"][parent]["children"][i["key"]] = child
+                        rem.append(i)
+
+        for r in rem:
+            issues.remove(r)
+        rem = []
+
+        for key, value in tickets.items():
+            W().write("{:<19s}{:<11s}{:<9s}{:<7s}{}\n"
+                            .format(key,
+                                    value["issue_type"],
+                                    value["status"],
+                                    value["progress"],
+                                    value["summary"],
+                                        ), "epic")
+            for key2, value2 in value["children"].items():
+                W().write("  {:<17s}{:<11s}{:<9s}{:<7s}{}\n"
+                              .format(key2,
+                                        value2["issue_type"],
+                                        value2["status"],
+                                        value2["progress"],
+                                        value2["summary"],
+                                        ), "task")
+                if "children" in value2:
+                    for key3, value3 in value2["children"].items():
+                        W().write("    {:<15s}{:<11s}{:<9s}{:<7s}{}\n"
+                                      .format(key3,
+                                                  value3["issue_type"],
+                                                  value3["status"],
+                                                  value3["progress"],
+                                                  value3["summary"],
+                                                  ), "tip")
+        # Other
+        for i in issues:
+            st = i["fields"]["status"]["name"]
+            status = st[0:statlim]+"." if len(st)>statlim else st
+
+            try:
+                prog = str(i["fields"]["aggregateprogress"]["percent"]) + "%"
+            except:
+                prog = ""
+
+            s = i["fields"]["summary"]
+            sumlim = 31
+            summary = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
+            W().write("{:<19s}{:<11s}{:<9s}{:<7s}{}\n"
+                            .format(i["key"],
+                                    i["fields"]["issuetype"]["name"],
+                                    status,
+                                    prog,
+                                    summary,
+                                        ), "warning")
+
+
 
         return tickets
-
-    def makeTicket(self, key, fields, nonOwned=False):
-        ticket = {
-                "summary" : "",
-                "issuetype" : "",
-                "progress" : "",
-                "parent" : "",
-                "status" : "",
-                }
-
-        s = fields["summary"]
-        sumlim = 31
-        ticket["summary"] = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
-        ticket["issuetype"] = fields["issuetype"]["name"]
-        st = fields["status"]["name"]
-        statlim = 6
-        ticket["status"] = st[0:statlim]+"." if len(st)>statlim else st
-
-
-        if nonOwned:
-            ticket["parent"] = None
-            return ticket
-
-        try:
-            ticket["progress"] = str(fields["aggregateprogress"]["percent"]) + "%"
-        except Exception:
-            ticket["progress"] = ""
-
-        try:
-            ticket["parent"] = fields["parent"]
-        except:
-            ticket["parent"] = None
-
-        if ticket["parent"] == None:
-            pkey = fields["customfield_10008"]
-            if pkey is None:
-                ticket["parent"] = None
-            else:
-                ticket["parent"] = {}
-                ticket["parent"]["key"] = pkey
-                ticket["parent"]["fields"] = {}
-                ticket["parent"]["fields"]["issuetype"] = {}
-                ticket["parent"]["fields"]["issuetype"]["name"] = "Epic"
-                ticket["parent"]["fields"]["summary"] = "epic"
-                ticket["parent"]["fields"]["aggregateprogress"] = {}
-                ticket["parent"]["fields"]["aggregateprogress"]["percent"] = ""
-                ticket["parent"]["fields"]["status"] = {}
-                ticket["parent"]["fields"]["status"]["name"] = ""
-
-        return ticket
 
     def assign(self, ticket, user):
         """Assign an issue to a user.
