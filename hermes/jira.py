@@ -425,7 +425,6 @@ reset the count and Hermes will work once again.\n""", "warning")
         # EPICS
         for i in issues:
             status, prog, summary, issue_type, color = self.getTicketData(i)
-
             if i["fields"]["issuetype"]["name"] == "Epic":
                 tickets[i["key"]] = {
                     "issue_type" : issue_type,
@@ -443,9 +442,19 @@ reset the count and Hermes will work once again.\n""", "warning")
 
         # Epic children
         for i in issues:
-            status, prog, summary, issue_type, color = self.getTicketData(i)
 
             if i["fields"]["customfield_10008"]:
+                if i["fields"]["customfield_10008"] not in tickets:
+                    tickets[i["fields"]["customfield_10008"]] = {
+                        "issue_type" : "Epic",
+                        "status" : "",
+                        "progress" : "",
+                        "summary" : "",
+                        "color" : "epic",
+                        "children" : {},
+                        }
+
+                status, prog, summary, issue_type, color = self.getTicketData(i)
                 child = {
                     "issue_type" : issue_type,
                     "status" : status,
