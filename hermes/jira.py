@@ -361,6 +361,39 @@ reset the count and Hermes will work once again.\n""", "warning")
 
         return False
 
+    def getTicketData(self, issue):
+        import os
+        rows, columns = os.popen('stty size', 'r').read().split() # terminal cols
+
+        statlim = 6
+        st = issue["fields"]["status"]["name"]
+        status = st[0:statlim]+"." if len(st)>statlim else st
+
+        try:
+            prog = str(issue["fields"]["aggregateprogress"]["percent"]) + "%"
+        except:
+            prog = ""
+
+        s = issue["fields"]["summary"]
+        sumlim = int(columns) - 49
+        summary = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
+        issue_type = issue["fields"]["issuetype"]["name"]
+
+        if issue_type.lower() == "bug":
+            color = "warning"
+        elif issue_type.lower() == "new feature":
+            color = "ok"
+        elif issue_type.lower() == "task":
+            color = "task"
+        elif issue_type.lower() == "sub-task":
+            color = "tip"
+        elif issue_type.lower() == "epic":
+            color = "epic"
+        else:
+            color = "regular"
+
+        return status, prog, summary, issue_type, color
+
     def tickets(self, key=None, target="assignee"): #TODO: Cleanup!
         """Lists all tickets for assigned to a user or project.
 
@@ -388,27 +421,18 @@ reset the count and Hermes will work once again.\n""", "warning")
         tickets = {}
 
         rem = []
+
         # EPICS
         for i in issues:
-            statlim = 6
-            st = i["fields"]["status"]["name"]
-            status = st[0:statlim]+"." if len(st)>statlim else st
+            status, prog, summary, issue_type, color = self.getTicketData(i)
 
-            try:
-                prog = str(i["fields"]["aggregateprogress"]["percent"]) + "%"
-            except:
-                prog = ""
-
-            s = i["fields"]["summary"]
-            sumlim = 31
-            summary = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
-
-            if i["fields"]["issuetype"]["name"] == "Epic" and i["key"] not in tickets:
+            if i["fields"]["issuetype"]["name"] == "Epic":
                 tickets[i["key"]] = {
-                    "issue_type" : i["fields"]["issuetype"]["name"],
+                    "issue_type" : issue_type,
                     "status" : status,
                     "progress" : prog,
                     "summary" : summary,
+                    "color" : color,
                     "children" : {},
                     }
                 rem.append(i)
@@ -419,24 +443,15 @@ reset the count and Hermes will work once again.\n""", "warning")
 
         # Epic children
         for i in issues:
-            st = i["fields"]["status"]["name"]
-            status = st[0:statlim]+"." if len(st)>statlim else st
-
-            try:
-                prog = str(i["fields"]["aggregateprogress"]["percent"]) + "%"
-            except:
-                prog = ""
-
-            s = i["fields"]["summary"]
-            sumlim = 31
-            summary = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
+            status, prog, summary, issue_type, color = self.getTicketData(i)
 
             if i["fields"]["customfield_10008"]:
                 child = {
-                    "issue_type" : i["fields"]["issuetype"]["name"],
+                    "issue_type" : issue_type,
                     "status" : status,
                     "progress" : prog,
                     "summary" : summary,
+                    "color" : color,
                     "children" : {},
                     }
 
@@ -447,26 +462,17 @@ reset the count and Hermes will work once again.\n""", "warning")
             issues.remove(r)
         rem = []
 
-        # Task parents
+        # Parents
         for i in issues:
-            st = i["fields"]["status"]["name"]
-            status = st[0:statlim]+"." if len(st)>statlim else st
-
-            try:
-                prog = str(i["fields"]["aggregateprogress"]["percent"]) + "%"
-            except:
-                prog = ""
-
-            s = i["fields"]["summary"]
-            sumlim = 31
-            summary = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
+            status, prog, summary, issue_type, color = self.getTicketData(i)
 
             if i["fields"]["issuetype"]["name"].lower() == "task":
                 tickets[i["key"]] = {
-                    "issue_type" : i["fields"]["issuetype"]["name"],
+                    "issue_type" : issue_type,
                     "status" : status,
                     "progress" : prog,
                     "summary" : summary,
+                    "color" : color,
                     "children" : {},
                     }
                 rem.append(i)
@@ -477,25 +483,16 @@ reset the count and Hermes will work once again.\n""", "warning")
 
         # Subtasks
         for i in issues:
-            st = i["fields"]["status"]["name"]
-            status = st[0:statlim]+"." if len(st)>statlim else st
-
-            try:
-                prog = str(i["fields"]["aggregateprogress"]["percent"]) + "%"
-            except:
-                prog = ""
-
-            s = i["fields"]["summary"]
-            sumlim = 31
-            summary = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
+            status, prog, summary, issue_type, color = self.getTicketData(i)
 
             if "parent" in i["fields"]:
                 parent = i["fields"]["parent"]["key"]
                 child = {
-                    "issue_type" : i["fields"]["issuetype"]["name"],
+                    "issue_type" : issue_type,
                     "status" : status,
                     "progress" : prog,
                     "summary" : summary,
+                    "color" : color,
                     }
                 if parent in tickets:
                     tickets[parent]["children"][i["key"]] = child
@@ -512,52 +509,40 @@ reset the count and Hermes will work once again.\n""", "warning")
         rem = []
 
         for key, value in tickets.items():
-            W().write("{:<19s}{:<11s}{:<9s}{:<7s}{}\n"
+            W().write("{:<17s}{:<14s}{:<8s}{:<6s}{}\n"
                             .format(key,
                                     value["issue_type"],
                                     value["status"],
                                     value["progress"],
                                     value["summary"],
-                                        ), "epic")
+                                        ), value["color"])
             for key2, value2 in value["children"].items():
-                W().write("  {:<17s}{:<11s}{:<9s}{:<7s}{}\n"
+                W().write("  {:<15s}{:<14s}{:<8s}{:<6s}{}\n"
                               .format(key2,
                                         value2["issue_type"],
                                         value2["status"],
                                         value2["progress"],
                                         value2["summary"],
-                                        ), "task")
+                                        ), value2["color"])
                 if "children" in value2:
                     for key3, value3 in value2["children"].items():
-                        W().write("    {:<15s}{:<11s}{:<9s}{:<7s}{}\n"
+                        W().write("    {:<13s}{:<14s}{:<8s}{:<6s}{}\n"
                                       .format(key3,
                                                   value3["issue_type"],
                                                   value3["status"],
                                                   value3["progress"],
                                                   value3["summary"],
-                                                  ), "tip")
+                                                  ), value3["color"])
         # Other
         for i in issues:
-            st = i["fields"]["status"]["name"]
-            status = st[0:statlim]+"." if len(st)>statlim else st
-
-            try:
-                prog = str(i["fields"]["aggregateprogress"]["percent"]) + "%"
-            except:
-                prog = ""
-
-            s = i["fields"]["summary"]
-            sumlim = 31
-            summary = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
-            W().write("{:<19s}{:<11s}{:<9s}{:<7s}{}\n"
+            status, prog, summary, issue_type, color = self.getTicketData(i)
+            W().write("{:<17s}{:<14s}{:<8s}{:<6s}{}\n"
                             .format(i["key"],
-                                    i["fields"]["issuetype"]["name"],
+                                    issue_type,
                                     status,
                                     prog,
                                     summary,
-                                        ), "warning")
-
-
+                                        ), color)
 
         return tickets
 
