@@ -1,14 +1,12 @@
 #!/bin/bash
 
-DATE=$1
-VER=$2
-DIR=$3
-JAVA=$4
+VER=$1
+DIR=$2
+JAVA=$3
 
 #######################################
 # Main function
 # Globals:
-#   DATE - release date of desired phoebus version
 #   VER  - version number
 #   DIR  - installation target dir
 #   JAVA - path to java
@@ -25,7 +23,7 @@ main() {
     FILE="phoebus-$VER-linux.zip"
 
     # Download phoebus from artifactory
-    wget http://artifactory.esss.lu.se/artifactory/CS-Studio-Phoebus/$DATE/$FILE
+    wget http://artifactory.esss.lu.se/artifactory/CS-Studio-Phoebus/$FILE
 
     # Unpack
     unzip $FILE
