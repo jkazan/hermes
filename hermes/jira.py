@@ -146,7 +146,7 @@ class HJira(object):
         elif state.lower() == "implemented":
             state_id = "51"
         else:
-            W().write("Invalid state '{}'" .format(state), "warning")
+            W().write("Invalid state '{}'\n" .format(state), "warning")
             return
 
 
@@ -375,7 +375,7 @@ reset the count and Hermes will work once again.\n""", "warning")
             prog = ""
 
         s = issue["fields"]["summary"]
-        sumlim = int(columns) - 49
+        sumlim = int(columns) - 51
         summary = s[0:sumlim]+"..." if len(s)>sumlim+3 else s
         issue_type = issue["fields"]["issuetype"]["name"]
 
@@ -442,7 +442,6 @@ reset the count and Hermes will work once again.\n""", "warning")
 
         # Epic children
         for i in issues:
-
             if i["fields"]["customfield_10008"]:
                 if i["fields"]["customfield_10008"] not in tickets:
                     tickets[i["fields"]["customfield_10008"]] = {
@@ -518,7 +517,7 @@ reset the count and Hermes will work once again.\n""", "warning")
         rem = []
 
         for key, value in tickets.items():
-            W().write("{:<17s}{:<14s}{:<8s}{:<6s}{}\n"
+            W().write("{:<20s}{:<14s}{:<8s}{:<6s}{}\n"
                             .format(key,
                                     value["issue_type"],
                                     value["status"],
@@ -526,7 +525,7 @@ reset the count and Hermes will work once again.\n""", "warning")
                                     value["summary"],
                                         ), value["color"])
             for key2, value2 in value["children"].items():
-                W().write("  {:<15s}{:<14s}{:<8s}{:<6s}{}\n"
+                W().write("    {:<16s}{:<14s}{:<8s}{:<6s}{}\n"
                               .format(key2,
                                         value2["issue_type"],
                                         value2["status"],
@@ -535,7 +534,7 @@ reset the count and Hermes will work once again.\n""", "warning")
                                         ), value2["color"])
                 if "children" in value2:
                     for key3, value3 in value2["children"].items():
-                        W().write("    {:<13s}{:<14s}{:<8s}{:<6s}{}\n"
+                        W().write("        {:<12s}{:<14s}{:<8s}{:<6s}{}\n"
                                       .format(key3,
                                                   value3["issue_type"],
                                                   value3["status"],
@@ -545,7 +544,7 @@ reset the count and Hermes will work once again.\n""", "warning")
         # Other
         for i in issues:
             status, prog, summary, issue_type, color = self.getTicketData(i)
-            W().write("{:<17s}{:<14s}{:<8s}{:<6s}{}\n"
+            W().write("{:<20s}{:<14s}{:<8s}{:<6s}{}\n"
                             .format(i["key"],
                                     issue_type,
                                     status,
