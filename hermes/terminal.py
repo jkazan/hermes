@@ -1,3 +1,7 @@
+import os
+import sys
+
+
 class Color(object):
     def __init__(self):
         self.codes = []
@@ -14,21 +18,22 @@ class Color(object):
             newcolor = self.copy()
             newcolor.codes.append(code)
             return newcolor
+
         return property(append)
 
-    bold = code('1')
-    faint = code('2')
+    bold = code("1")
+    faint = code("2")
 
-    black = code('30')
-    red = code('31')
-    green = code('32')
-    yellow = code('33')
-    blue = code('34')
-    magenta = code('35')
-    cyan = code('36')
-    white = code('37')
+    black = code("30")
+    red = code("31")
+    green = code("32")
+    yellow = code("33")
+    blue = code("34")
+    magenta = code("35")
+    cyan = code("36")
+    white = code("37")
 
-    bright_blue = code('94')
+    bright_blue = code("94")
 
     @property
     def readline_escape(self):
@@ -44,24 +49,25 @@ class Color(object):
 
     def __call__(self, string):
         if string:
-            return   self.perform_escape('\x1b[' + ';'.join(self.codes) + 'm') \
-                   + string \
-                   + self.perform_escape('\x1b[0m')
+            return "{}{}{}".format(
+                self.perform_escape("\x1b[" + ";".join(self.codes) + "m"),
+                string,
+                self.perform_escape("\x1b[0m"),
+            )
         else:
             return string
 
-import os
-import sys
+
 class Write(object):
     colors = {
-        'regular' : Color(),
-        'prompt'  : Color().bright_blue,
-        'header'  : Color().bold.white,
-        'warning' : Color().red,
-        'task'    : Color().cyan,
-        'epic'    : Color().magenta,
-        'ok'      : Color().green,
-        'tip'     : Color().yellow,
+        "regular": Color(),
+        "prompt": Color().bright_blue,
+        "header": Color().bold.white,
+        "warning": Color().red,
+        "task": Color().cyan,
+        "epic": Color().magenta,
+        "ok": Color().green,
+        "tip": Color().yellow,
     }
 
     def write(self, string, color="regular"):
@@ -70,7 +76,7 @@ class Write(object):
         :param string: String to print
         :param color: Font color, default is 'regular'
         """
-        if os.name == 'nt':
+        if os.name == "nt":
             sys.stdout.write(str(string))
         else:
             sys.stdout.write(self.colors[color](str(string)))
