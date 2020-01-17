@@ -66,30 +66,6 @@ class HJira(object):
                 }
                 fw.write(json.dumps(info, indent=4, separators=(",", ":")))
 
-    # def email(self, recipient, subject, body, html=False):
-    #     self.login()
-    #     if not self.loggedin:
-    #         return
-
-    #     msg = MIMEMultipart("alternative")
-    #     msg["Subject"] = subject
-    #     msg["From"] = self.mailaddress
-    #     msg["To"] = recipient
-
-    #     if html:
-    #         body = MIMEText(body, "html")
-
-    #     msg.attach(body)
-
-    #     try:
-    #         server = smtplib.SMTP(self.smtp, 587)
-    #         server.starttls()
-    #         server.login(self.user, self.auth[1])
-    #         server.sendmail(self.mailaddress, recipient, msg.as_string())
-    #         server.close()
-    #     except Exception:
-    #         W().write("Failed to send  mail\n", "warning")
-
     def login(self, user=None, password=None):
         """" Login to Jira account. """
 
