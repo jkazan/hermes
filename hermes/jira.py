@@ -19,7 +19,6 @@ from graphviz import Digraph
 import threading
 import time
 
-
 class HJira(object):
     def __init__(self):
         self.url = "https://jira.esss.lu.se"
@@ -371,7 +370,7 @@ reset the count and Hermes will work once again.\n""",
 
         return status, prog, summary, issue_type, color
 
-    def tickets(self, key=None, target="assignee", state="all"):  # TODO:Cleanup!
+    def tickets(self, key=None, target="assignee", exclude=[]):  # TODO:Cleanup!
         """Lists all tickets for assigned to a user or project.
 
         :param key: Name of Jira user or project
@@ -403,7 +402,8 @@ reset the count and Hermes will work once again.\n""",
         # EPICS
         for i in issues:
             status, prog, summary, issue_type, color = self.getTicketData(i)
-            if state.lower() not in [status.lower(), "all"]:
+            if status.lower() in exclude:
+                rem.append(i)
                 continue
 
             if i["fields"]["issuetype"]["name"] == "Epic":
@@ -425,8 +425,6 @@ reset the count and Hermes will work once again.\n""",
         for i in issues:
             if i["fields"]["customfield_10008"]:
                 status, prog, summary, issue_type, color = self.getTicketData(i)
-                if state.lower() not in [status.lower(), "all"]:
-                    continue
 
                 if i["fields"]["customfield_10008"] not in tickets:
                     tickets[i["fields"]["customfield_10008"]] = {
@@ -457,8 +455,6 @@ reset the count and Hermes will work once again.\n""",
         # Parents
         for i in issues:
             status, prog, summary, issue_type, color = self.getTicketData(i)
-            if state.lower() not in [status.lower(), "all"]:
-                continue
 
             if i["fields"]["issuetype"]["name"].lower() == "task":
                 tickets[i["key"]] = {
@@ -478,8 +474,6 @@ reset the count and Hermes will work once again.\n""",
         # Subtasks
         for i in issues:
             status, prog, summary, issue_type, color = self.getTicketData(i)
-            if state.lower() not in [status.lower(), "all"]:
-                continue
 
             if "parent" in i["fields"]:
                 parent = i["fields"]["parent"]["key"]
@@ -537,11 +531,11 @@ reset the count and Hermes will work once again.\n""",
                             value3["color"],
                             3,
                         )
+            rows, cols = os.popen("stty size", "r").read().split() # Get cols
+            print("_"*int(cols))
         # Other
         for i in issues:
             status, prog, summary, issue_type, color = self.getTicketData(i)
-            if state.lower() not in [status.lower(), "all"]:
-                continue
 
             self.ticket_print(i["key"], issue_type, status, prog, summary, color, 1)
 
@@ -851,7 +845,7 @@ reset the count and Hermes will work once again.\n""",
 
         return aments
 
-    def email(self, recipient, subject, body, html=False):
+    def email(self, recipient, subject, body, html=True):
         self.login()
         if not self.loggedin:
             return
@@ -872,7 +866,8 @@ reset the count and Hermes will work once again.\n""",
             server.login(self.user, self.auth[1])
             server.sendmail(self.mailaddress, recipient, msg.as_string())
             server.close()
-        except Exception:
+        except Exception as e:
+            print(e)
             W().write("Failed to send  mail\n", "warning")
 
     def getProjects(self):
