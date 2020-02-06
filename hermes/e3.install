@@ -22,7 +22,8 @@ main() {
     # Configure for EPICS 7
     # yes Y | sudo -u $SUDO_USER bash e3_building_config.bash -t $E3DIR -b 7.0.1.1 setup
     read -rp "EPICS version: " -n 9
-    yes Y | bash e3_building_config.bash -t $E3DIR -b $REPLY setup
+    VERSION=$REPLY
+    yes Y | bash e3_building_config.bash -t $E3DIR -b $VERSION setup
 
     # Install base within the e3 directory
     # yes Y | sudo -u $SUDO_USER ./e3.bash base
@@ -40,12 +41,13 @@ main() {
     # sudo -u $SUDO_USER git clone https://github.com/icshwi/e3-tools
     git clone https://github.com/icshwi/e3-tools
 
+    REQUIRE=`ls $E3DIR/base-${VERSION}/require/`
     # Tip
     echo
     echo
     echo "Tip: Put aliases in your .bashrc file..."
     echo
-    echo "alias e3=\"source $E3DIR/base-7.0.3/require/3.1.0/bin/setE3Env.bash no_msg\""
+    echo "alias e3=\"source $E3DIR/base-${VERSION}/require/${REQUIRE}/bin/setE3Env.bash no_msg\""
     echo "alias e3get=\"$E3DIR/e3/caget_pvs.bash\""
     echo "alias iocsh=\"$E3DIR/e3/e3-require/tools/iocsh.bash\""
 }
