@@ -380,8 +380,15 @@ reset the count and Hermes will work once again.\n""",
         if not self.loggedin:
             return
 
+        n_results = 99999
         if key is None and target == "assignee":
             key = self.user
+        else:
+            try:
+                n_results = int(key)
+                key = self.user
+            except (ValueError, TypeError):
+                pass
 
         url = "{}/rest/api/2/search?jql={}={}&maxResults=999".format(
             self.url, target, key
@@ -498,7 +505,11 @@ reset the count and Hermes will work once again.\n""",
             issues.remove(r)
         rem = []
 
+        count = 0
         for key, value in tickets.items():
+            count += 1
+            if count > n_results:
+                break
             self.ticket_print(
                 key,
                 value["issue_type"],
@@ -531,10 +542,14 @@ reset the count and Hermes will work once again.\n""",
                             value3["color"],
                             3,
                         )
+
             rows, cols = os.popen("stty size", "r").read().split() # Get cols
             print("_"*int(cols))
         # Other
         for i in issues:
+            count += 1
+            if count > n_results:
+                break
             status, prog, summary, issue_type, color = self.getTicketData(i)
 
             self.ticket_print(i["key"], issue_type, status, prog, summary, color, 1)

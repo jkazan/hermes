@@ -21,6 +21,8 @@ class CLIReactor(object):
         self.event_loop_active = True
         self.hjira = HJira()
         self.hinstall = HInstall()
+        self.history = os.path.dirname(os.path.abspath(__file__)) + "/.hermes_history"
+        readline.read_history_file(self.history)
         self.commands = {
             # name           function
             # HERMES ######################
@@ -111,6 +113,7 @@ class CLIReactor(object):
             '          dates="<from> <to>"': 'report dates="2019-08-01 2019-08-10"',
             "Installation": None,
             "install   e3 <install path>": "Install e3 with epics 7 + common mods",
+            "          archiver <install path>": "Install archiver appliance",
             "          css <install path> [<branch>]": "Install css production|development",
             "          plcfactory <install path>": "Install plc factory",
             "          beast <install path>": "Install BEAST alarm handler",
@@ -165,6 +168,8 @@ class CLIReactor(object):
         try:
             args = self.parse(data)
             function(*args)
+            with open(self.history, "a") as f:
+                f.write(command + "\n")
         except TypeError as type_error:
             Write().write("{}\n".format(type_error), "warning")
 
