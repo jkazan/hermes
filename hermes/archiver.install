@@ -1,0 +1,60 @@
+#!/bin/bash
+
+#######################################
+# Main function
+# Globals:
+#   TARGET_DIR - installation target dir
+# Arguments:
+#   None
+# Returns:
+#   None
+#######################################
+main() {
+    # create directory for e3
+    TARGET_DIR=$TARGET_DIR/archiver
+    mkdir -p $TARGET_DIR
+    cd $TARGET_DIR
+
+    # Download archiver
+    wget https://github.com/slacmshankar/epicsarchiverap/releases/download/v0.0.1_SNAPSHOT_13-Nov-2019/archappl_v0.0.1_SNAPSHOT_13-November-2019T15-45-42.tar.gz
+
+    # Download TomCat
+    wget http://apache.mirrors.spacedump.net/tomcat/tomcat-9/v9.0.31/bin/apache-tomcat-9.0.31.tar.gz
+
+    # Untar both tarballs
+    tar xzf archappl_v0.0.1_SNAPSHOT_13-November-2019T15-45-42.tar.gz
+    tar xzf apache-tomcat-9.0.31.tar.gz
+
+    # Run quick start script
+    ./quickstart.sh apache-tomcat-9.0.31.tar.gz
+
+    # Open browser
+    sensible-browser http://localhost:17665/mgmt/ui/index.html
+
+
+
+    # Tip
+    echo
+    echo
+    echo "Tip: Put aliases in your .bashrc file..."
+    echo
+    echo "alias archiver=\"$TARGET_DIR/quickstart.sh $TARGET_DIR/apache-tomcat-9.0.31.tar.gz\""
+    echo
+    echo "The archiver is now running. Go to http://localhost:17665/mgmt/ui/index.html"
+    echo
+}
+
+TARGET_DIR=$1
+
+if [ ! -d "$TARGET_DIR" ] ; then
+    echo -n "$TARGET_DIR directory not found. "
+    read -rp $"Would you like to create it [Y\n]? " -n 1
+    echo
+    if [[ "$REPLY" == [Yy] ]] ; then
+        main
+    else
+        exit 0
+    fi
+else
+    main
+fi

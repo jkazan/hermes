@@ -20,20 +20,40 @@ main() {
     mkdir -p $DIR
     cd $DIR
 
-    FILE="phoebus-$VER-linux.zip"
+    # FILE="phoebus-$VER-linux.zip"
+    FILE="ess-cs-studio-phoebus-$VER-linux.tar.gz "
+
 
     # Download phoebus from artifactory
-    wget http://artifactory.esss.lu.se/artifactory/CS-Studio-Phoebus/$FILE
+    # wget http://artifactory.esss.lu.se/artifactory/CS-Studio-Phoebus/$FILE
+    wget https://artifactory.esss.lu.se/artifactory/libs-release-local/se/europeanspallationsource/ics/ess-cs-studio-phoebus/$VER/$FILE
 
     # Unpack
-    unzip $FILE
+    # unzip $FILE
+    tar xzf $FILE
 
     # Delete zip file
     rm $FILE
 
     # Create .ini file and launch file
     cd phoebus-$VER
-    echo "org.phoebus.pv.ca/addr_list=10.0.16.85" > phoebus.ini
+    echo "# Space separated list of IP addresses of IOCs and/or gateways.
+org.phoebus.pv.ca/addr_list=10.0.16.85 172.30.5.42
+
+# Remove splash screen at startup
+org.phoebus.ui/splash=false
+
+org.csstudio.display.builder.model/color_files=examples:light-theme-colours.def
+
+# ESS font definitions for Display Builder
+org.csstudio.display.builder.model/font_files=examples:fonts-ess.def
+
+# ESS CSS classes for Display Builder
+org.csstudio.display.builder.model/class_files=examples:ess-classes.bcf
+
+# Use the ESS template for new displays
+org.csstudio.display.builder.editor/new_display_template=examples:initial_ess.bob
+" > phoebus.ini
     echo "$JAVA -jar $DIR/phoebus-$VER/product-$VER.jar -settings $DIR/phoebus-$VER/phoebus.ini -nosplash
 " > launch_phoebus.sh
 

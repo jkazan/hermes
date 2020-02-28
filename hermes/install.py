@@ -61,6 +61,25 @@ class HInstall(object):
                 W().write(e, "warning")
                 return
 
+        if tool == "archiver":
+            # Check if already installed
+            if os.path.exists(dest + "/archiver"):
+                overwrite = input(
+                    "Archiver found in the destination directory. "
+                    "Overwrite existing Archiver? [Y/n]: "
+                ).lower()
+                if not overwrite == "y":
+                    return
+
+            try:
+                W().write("Installing {}\n".format(tool), "task")
+                ret_code = subprocess.check_call(
+                    "{}/archiver.install {} opt".format(path, dest, opt), shell=True
+                )
+            except subprocess.CalledProcessError as e:
+                W().write(e, "warning")
+                return
+
         elif tool == "plcfactory":
             # Check if already installed
             existing = False
@@ -200,7 +219,8 @@ class HInstall(object):
             )
 
         elif tool == "phoebus":
-            url = "https://artifactory.esss.lu.se/artifactory/CS-Studio-Phoebus/"
+            # url = "https://artifactory.esss.lu.se/artifactory/CS-Studio-Phoebus/"
+            url = "https://artifactory.esss.lu.se/artifactory/libs-release-local/se/europeanspallationsource/ics/ess-cs-studio-phoebus/"
             pattern = re.compile("[0-9]+\.[0-9]+\.[0-9]+")
 
             params = {"q": "ISOW7841FDWER"}
@@ -211,8 +231,9 @@ class HInstall(object):
             version = set(pattern.findall(r.text))
             version = list(version)
             version.sort(key=LooseVersion)
+            version = version[-2]
 
-            cmd = "bash {}/phoebus.install {} {} {}".format(path, version[0], dest, opt)
+            cmd = "bash {}/phoebus.install {} {} {}".format(path, version, dest, opt)
             print(cmd)
 
             ret_code = subprocess.check_call(cmd, shell=True)
