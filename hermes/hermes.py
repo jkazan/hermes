@@ -143,6 +143,7 @@ class CLIReactor(object):
         param data: Input data from command line.
         """
         # Split command from argument and strip from whitespace etc.
+        history_data = data
         data = data.strip()
         command, _, data = data.partition(" ")
         data = data.strip()
@@ -169,7 +170,7 @@ class CLIReactor(object):
             args = self.parse(data)
             function(*args)
             with open(self.history, "a") as f:
-                f.write(command + "\n")
+                f.write(history_data + "\n")
         except TypeError as type_error:
             Write().write("{}\n".format(type_error), "warning")
 
