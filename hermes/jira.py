@@ -258,7 +258,7 @@ class HJira(object):
                 W().write("{}".format(comments[i][k]), color)
             print("")
 
-    def log(self, ticket, time, comment):
+    def log(self, ticket, time, comment=""):
         """Log work.
 
         param ticket: Jira ticket key.
